@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roam — Travel Planner</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300;1,9..144,500&family=Cabinet+Grotesk:wght@400;500;600;700;800&family=Departure+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+/* ═══════════════════════════════════════════════
+   ROAM — PRODUCTION TRAVEL PLANNER
+   Design DNA: Refined dark luxury meets editorial warmth
+   Inspired by: Linear's precision, Luma's invites,
+   Airbnb's photo-richness, Notion's modularity
+═══════════════════════════════════════════════ */
+:root {
+  --bg: #0a0b0f;
+  --surface: #111318;
+  --surface2: #171921;
+  --surface3: #1e2028;
+  --border: rgba(255,255,255,0.06);
+  --border-med: rgba(255,255,255,0.10);
+  --border-hi: rgba(235,175,70,0.4);
+  --gold: #ebaf46;
+  --gold-soft: #d4973a;
+  --gold-dim: rgba(235,175,70,0.12);
+  --gold-glow: rgba(235,175,70,0.05);
+  --text: #f0ece4;
+  --text-mid: rgba(240,236,228,0.65);
+  --text-dim: rgba(240,236,228,0.38);
+  --text-faint: rgba(240,236,228,0.18);
+  --green: #4eca8a;
+  --green-dim: rgba(78,202,138,0.12);
+  --red: #e05656;
+  --red-dim: rgba(224,86,86,0.12);
+  --blue: #4e8fea;
+  --blue-dim: rgba(78,143,234,0.12);
+  --purple: #9d7de8;
+  --teal: #4ecac7;
+  --pink: #e07fa0;
+  --orange: #e8935a;
+  --sidebar-w: 68px;
+  --topbar-h: 56px;
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'Cabinet Grotesk', sans-serif; background: var(--bg); color: var(--text); }
+
+/* GRAIN TEXTURE */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9997;
+}
+
+/* ══ SIDEBAR ════════════════════════════════ */
+.sidebar {
+  position: fixed;
+  left: 0; top: 0; bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 0;
+  z-index: 300;
+  gap: 4px;
+}
+
+.sidebar-logo {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 500;
+  color: var(--gold);
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+  cursor: pointer;
+}
+
+.nav-item {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: all 0.18s;
+  border: 1px solid transparent;
+  background: transparent;
+  position: relative;
+}
+.nav-item:hover { background: var(--surface2); }
+.nav-item.active {
+  background: var(--gold-dim);
+  border-color: var(--border-hi);
+}
+.nav-icon { font-size: 16px; line-height: 1; }
+.nav-label {
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-family: 'Departure Mono', monospace;
+  color: var(--text-dim);
+  transition: color 0.18s;
+}
+.nav-item.active .nav-label,
+.nav-item.active .nav-icon { color: var(--gold); }
+.nav-item:hover .nav-label { color: var(--text-mid); }
+
+.sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-avatar {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--gold-soft), var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+  position: relative;
+}
+.user-avatar:hover { border-color: var(--gold); }
+
+/* Online indicator */
+.online-dot {
+  width: 8px; height: 8px;
+  background: var(--green);
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+  position: absolute;
+  bottom: 0; right: 0;
+}
+
+/* ══ MAIN ═══════════════════════════════════ */
+.main {
+  margin-left: var(--sidebar-w);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ══ TOPBAR ═════════════════════════════════ */
+.topbar {
+  height: var(--topbar-h);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+  background: var(--bg);
+  position: relative;
+  z-index: 100;
+}
+
+.trip-info { display: flex; align-items: center; gap: 10px; }
+
+.trip-name-input {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: text;
+  min-width: 10px;
+  max-width: 280px;
+}
+.trip-name-input:hover { background: var(--surface2); border-radius: 4px; padding: 0 4px; }
+.trip-name-input:focus { background: var(--surface2); border-radius: 4px; padding: 0 4px; }
+
+.status-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: 'Departure Mono', monospace;
+  padding: 3px 8px;
+  border-radius: 20px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.status-planning { background: var(--gold-dim); border-color: var(--border-hi); color: var(--gold); }
+.status-booked { background: var(--green-dim); border-color: rgba(78,202,138,0.3); color: var(--green); }
+
+/* Collaborators in topbar */
+.collab-row { display: flex; align-items: center; gap: 8px; }
+.collab-avatars { display: flex; align-items: center; }
+.collab-av {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  margin-left: -8px;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  transition: transform 0.15s;
+}
+.collab-av:first-child { margin-left: 0; }
+.collab-av:hover { transform: translateY(-2px); z-index: 10; }
+.collab-av.online { box-shadow: 0 0 0 2px var(--green); }
+
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+/* ══ BUTTONS ════════════════════════════════ */
+.btn {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.18s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.btn-gold { background: var(--gold); color: #0a0b0f; padding: 8px 14px; }
+.btn-gold:hover { background: #f2c060; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(235,175,70,0.3); }
+.btn-outline { background: transparent; color: var(--text-mid); padding: 7px 13px; border: 1px solid var(--border-med); }
+.btn-outline:hover { border-color: var(--border-hi); color: var(--text); background: var(--gold-glow); }
+.btn-ghost { background: transparent; color: var(--text-dim); padding: 7px 11px; border: 1px solid transparent; }
+.btn-ghost:hover { background: var(--surface2); color: var(--text-mid); }
+.btn-danger { background: transparent; color: var(--red); padding: 6px 10px; border: 1px solid rgba(224,86,86,0.25); border-radius: var(--radius-sm); }
+.btn-danger:hover { background: var(--red-dim); }
+.btn-sm { font-size: 10px; padding: 5px 10px; }
+.btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; border-radius: 8px; font-size: 14px; }
+
+/* ══ CONTENT AREA ═══════════════════════════ */
+.content { flex: 1; overflow: hidden; position: relative; }
+.page {
+  position: absolute; inset: 0;
+  overflow-y: auto;
+  padding: 24px;
+  display: none;
+  animation: pgIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.page.active { display: block; }
+@keyframes pgIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ══ PAGE HEADERS ════════════════════════════ */
+.page-hdr { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 22px; }
+.page-title { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 300; line-height: 1; }
+.page-title em { color: var(--gold); font-style: italic; }
+.page-sub { font-size: 10px; color: var(--text-dim); font-family: 'Departure Mono', monospace; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 5px; }
+.page-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ══ AUTH SCREEN ════════════════════════════ */
+#auth-screen {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border-med);
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+}
+
+.auth-logo {
+  font-family: 'Fraunces', serif;
+  font-size: 42px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--gold);
+  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+}
+.auth-tagline {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 36px;
+  font-family: 'Departure Mono', monospace;
+  letter-spacing: 0.04em;
+}
+.auth-tabs { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; margin-bottom: 26px; }
+.auth-tab {
+  flex: 1;
+  padding: 9px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.18s;
+  letter-spacing: 0.04em;
+}
+.auth-tab.active { background: var(--surface2); color: var(--text); }
+
+.auth-input-wrap { margin-bottom: 14px; text-align: left; }
+.auth-label { font-size: 10px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-dim); font-family: 'Departure Mono', monospace; display: block; margin-bottom: 6px; }
+.auth-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border-med);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 14px;
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.auth-input:focus { border-color: var(--gold); }
+
+.auth-btn {
+  width: 100%;
+  background: var(--gold);
+  color: #0a0b0f;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 6px;
+}
+.auth-btn:hover { background: #f2c060; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(235,175,70,0.3); }
+.auth-divider { color: var(--text-faint); font-size: 11px; margin: 18px 0; display: flex; align-items: center; gap: 12px; }
+.auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.auth-demo-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px solid var(--border-med);
+  border-radius: 10px;
+  color: var(--text-mid);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 11px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.auth-demo-btn:hover { border-color: var(--border-hi); color: var(--text); background: var(--gold-glow); }
+.auth-error { color: var(--red); font-size: 12px; margin-top: 10px; font-family: 'Departure Mono', monospace; }
+.auth-success { color: var(--green); font-size: 12px; margin-top: 10px; font-family: 'Departure Mono', monospace; }
+
+/* ══ TRIPS LIST (HOME) ═══════════════════════ */
+.trips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.trip-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.22s;
+}
+.trip-card:hover { border-color: var(--border-med); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+
+.trip-cover {
+  height: 130px;
+  position: relative;
+  overflow: hidden;
+}
+.trip-cover-img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+.trip-card:hover .trip-cover-img { transform: scale(1.04); }
+.trip-cover-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%);
+}
+.trip-cover-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48px;
+}
+.trip-cover-cities {
+  position: absolute;
+  bottom: 10px; left: 14px;
+  font-family: 'Departure Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+
+.trip-card-body { padding: 16px; }
+.trip-card-title { font-family: 'Fraunces', serif; font-size: 19px; font-weight: 500; margin-bottom: 6px; }
+.trip-card-meta { display: flex; gap: 12px; align-items: center; }
+.trip-card-stat { font-size: 10px; color: var(--text-dim); font-family: 'Departure Mono', monospace; }
+.trip-card-collab { display: flex; margin-left: auto; }
+.trip-card-av { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--surface); margin-left: -6px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; color: white; }
+.trip-card-av:first-child { margin-left: 0; }
+
+.new-trip-card {
+  background: var(--surface);
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 200px;
+  color: var(--text-dim);
+}
+.new-trip-card:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+.new-trip-card-plus { font-size: 28px; }
+.new-trip-card-label { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* ══ OVERVIEW / TRIP DETAIL ══════════════════ */
+.stat-bar { display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+.stat-pill {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.stat-pill-icon { font-size: 15px; }
+.stat-pill-val { font-family: 'Departure Mono', monospace; font-size: 15px; font-weight: 500; color: var(--gold); }
+.stat-pill-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 0.07em; text-transform: uppercase; margin-top: 1px; }
+
+/* ══ CITY CARDS ══════════════════════════════ */
+.cities-section { margin-bottom: 24px; }
+.cities-section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); font-family: 'Departure Mono', monospace; }
+
+.cities-list { display: flex; flex-direction: column; gap: 8px; }
+
+.city-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.city-row:hover { border-color: var(--border-med); }
+.city-row.drag-over-city { border-color: var(--gold); background: var(--gold-glow); }
+
+.city-row-drag {
+  padding: 12px 10px;
+  color: var(--text-faint);
+  font-size: 13px;
+  cursor: grab;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.city-row:hover .city-row-drag { color: var(--text-dim); }
+
+.city-row-swatch {
+  width: 4px;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.city-row-emoji { font-size: 22px; padding: 10px 12px; flex-shrink: 0; }
+
+.city-row-info { flex: 1; padding: 10px 0; min-width: 0; }
+.city-row-name { font-weight: 700; font-size: 14px; }
+.city-row-sub { font-size: 10px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-top: 2px; }
+
+.city-row-stats {
+  display: flex; gap: 16px;
+  padding: 0 16px;
+}
+.city-row-stat { text-align: center; }
+.city-row-stat-val { font-family: 'Departure Mono', monospace; font-size: 14px; font-weight: 500; color: var(--gold); }
+.city-row-stat-lbl { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 1px; }
+
+.city-row-actions {
+  display: flex; align-items: center; gap: 4px;
+  padding: 0 10px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.city-row:hover .city-row-actions { opacity: 1; }
+
+/* ══ ROUTE DISPLAY ═══════════════════════════ */
+.route-display {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 22px;
+  margin-bottom: 22px;
+  overflow-x: auto;
+}
+.route-label { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-bottom: 14px; }
+.route-track { display: flex; align-items: center; gap: 0; }
+.route-node { text-align: center; flex-shrink: 0; min-width: 76px; }
+.route-node-icon { font-size: 22px; margin-bottom: 5px; }
+.route-node-name { font-size: 11px; font-weight: 700; }
+.route-node-sub { font-size: 8px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-top: 2px; }
+.route-line-seg { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(235,175,70,0.4), transparent); min-width: 32px; position: relative; }
+.route-line-seg::after { content: '✈'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 11px; opacity: 0.4; }
+
+/* ══ COLLABORATORS PANEL ═════════════════════ */
+.collab-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+}
+.collab-invite-row { display: flex; gap: 8px; margin-top: 12px; }
+.collab-invite-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border-med);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 12px;
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.collab-invite-input:focus { border-color: var(--gold); }
+.collab-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.collab-item { display: flex; align-items: center; gap: 10px; }
+.collab-item-av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; }
+.collab-item-name { font-size: 12px; font-weight: 600; flex: 1; }
+.collab-item-role { font-size: 9px; font-family: 'Departure Mono', monospace; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; }
+.collab-online-badge { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+/* ══ ITINERARY ═══════════════════════════════ */
+.itin-layout { display: grid; grid-template-columns: 236px 1fr; gap: 16px; height: calc(100vh - 132px); }
+
+.day-sidebar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.day-sidebar-label { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-bottom: 8px; padding: 0 2px; }
+.days-scroll { flex: 1; overflow-y: auto; }
+
+.day-item {
+  border-radius: 9px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+  display: flex; align-items: center; gap: 8px;
+  border: 1px solid transparent;
+  user-select: none;
+}
+.day-item:hover { background: var(--surface2); }
+.day-item.active { background: var(--gold-dim); border-color: var(--border-hi); }
+.day-item.drag-over { border-color: var(--gold); background: var(--gold-glow); transform: translateY(-1px); }
+
+.day-num {
+  width: 24px; height: 24px;
+  border-radius: 7px;
+  background: var(--surface3);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Departure Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.day-item.active .day-num { background: var(--gold); color: #0a0b0f; font-weight: 700; }
+
+.day-info { flex: 1; min-width: 0; }
+.day-name { font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.day-meta { font-size: 9px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-top: 1px; }
+
+.day-city-chip {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.add-day-row {
+  margin-top: 8px;
+  display: flex; gap: 6px;
+}
+.add-day-btn {
+  flex: 1; padding: 8px;
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  cursor: pointer; transition: all 0.18s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.add-day-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+
+/* DAY DETAIL */
+.day-detail-wrap { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+
+.day-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.day-title { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; }
+.day-title em { color: var(--gold); font-style: italic; }
+
+/* Activity Cards */
+.acts-list { display: flex; flex-direction: column; gap: 7px; }
+
+.act-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: stretch; gap: 0;
+  overflow: hidden;
+  transition: all 0.18s;
+  position: relative;
+  cursor: default;
+}
+.act-card:hover { border-color: var(--border-med); box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+.act-card.dragging { opacity: 0.3; transform: scale(0.97); }
+.act-card.drag-over { border-color: var(--gold); background: var(--gold-glow); transform: translateY(-2px); }
+
+.act-color-bar { width: 3px; flex-shrink: 0; }
+.act-drag-handle { padding: 0 9px; color: var(--text-faint); font-size: 12px; cursor: grab; display: flex; align-items: center; transition: color 0.15s; user-select: none; }
+.act-card:hover .act-drag-handle { color: var(--text-dim); }
+.act-time-col { padding: 14px 10px 14px 0; font-family: 'Departure Mono', monospace; font-size: 9px; color: var(--text-dim); min-width: 44px; display: flex; align-items: flex-start; padding-top: 16px; }
+.act-icon-col { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; margin: 12px 10px 12px 0; }
+.act-body { flex: 1; padding: 13px 0; }
+.act-title { font-size: 13px; font-weight: 700; }
+.act-loc { font-size: 10px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-top: 3px; display: flex; align-items: center; gap: 3px; }
+.act-tags { display: flex; gap: 4px; margin-top: 7px; flex-wrap: wrap; }
+.tag { font-size: 8px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; font-family: 'Departure Mono', monospace; }
+
+/* Photo thumbnail on activity */
+.act-photo {
+  width: 56px; height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  margin: 8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.act-photo:hover { transform: scale(1.05); }
+.act-photo-placeholder {
+  width: 56px; height: 56px;
+  border-radius: 8px;
+  background: var(--surface3);
+  margin: 8px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  border: 1px dashed var(--border-med);
+  transition: all 0.18s;
+}
+.act-photo-placeholder:hover { border-color: var(--gold); background: var(--gold-glow); }
+
+.act-right { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; padding: 0 14px; }
+.act-cost { font-family: 'Departure Mono', monospace; font-size: 12px; font-weight: 500; color: var(--green); }
+.act-actions { display: flex; gap: 3px; opacity: 0; transition: opacity 0.15s; }
+.act-card:hover .act-actions { opacity: 1; }
+
+.add-act-btn {
+  border: 1px dashed rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm);
+  padding: 13px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  cursor: pointer; background: transparent;
+  color: var(--text-dim);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.04em;
+  transition: all 0.18s; width: 100%;
+}
+.add-act-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+
+/* ══ MAP ═════════════════════════════════════ */
+#page-map { padding: 0 !important; }
+.map-outer { display: flex; flex-direction: column; height: 100%; }
+.map-bar {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.map-chip { padding: 5px 12px; border-radius: 14px; border: 1px solid var(--border-med); background: transparent; color: var(--text-dim); font-family: 'Cabinet Grotesk', sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 0.05em; cursor: pointer; transition: all 0.18s; }
+.map-chip.active { background: var(--gold-dim); border-color: var(--border-hi); color: var(--gold); }
+#leaflet-map { flex: 1; }
+.leaflet-tile-pane { filter: brightness(0.78) saturate(0.6); }
+.leaflet-popup-content-wrapper { background: var(--surface) !important; border: 1px solid var(--border-hi) !important; border-radius: 12px !important; color: var(--text) !important; box-shadow: 0 10px 40px rgba(0,0,0,0.7) !important; }
+.leaflet-popup-tip { background: var(--surface) !important; }
+.leaflet-popup-content { margin: 14px 16px !important; font-family: 'Cabinet Grotesk', sans-serif; }
+.leaflet-control-attribution { display: none !important; }
+.leaflet-control-zoom a { background: var(--surface) !important; border-color: var(--border-med) !important; color: var(--text) !important; }
+.lpop-city { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 500; margin-bottom: 3px; }
+.lpop-sub { font-size: 9px; font-family: 'Departure Mono', monospace; color: var(--text-dim); margin-bottom: 9px; }
+.lpop-act { font-size: 11px; padding: 5px 0; border-bottom: 1px solid var(--border); display: flex; gap: 7px; align-items: center; }
+.lpop-act:last-child { border: none; }
+
+/* ══ BUDGET ══════════════════════════════════ */
+.budget-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 20px; }
+.budget-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  position: relative; overflow: hidden;
+}
+.bg-glow { position: absolute; top: -40px; right: -40px; width: 110px; height: 110px; border-radius: 50%; pointer-events: none; }
+.budget-lbl { font-size: 9px; color: var(--text-dim); letter-spacing: 0.1em; text-transform: uppercase; font-family: 'Departure Mono', monospace; margin-bottom: 10px; }
+.budget-amt { font-family: 'Fraunces', serif; font-size: 34px; font-weight: 300; line-height: 1; }
+.budget-curr { font-size: 14px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-right: 3px; }
+.bpbar { height: 3px; background: rgba(255,255,255,0.05); border-radius: 3px; margin-top: 11px; overflow: hidden; }
+.bpbar-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.budget-hint { font-size: 9px; color: var(--text-dim); margin-top: 6px; font-family: 'Departure Mono', monospace; }
+.budget-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.breakdown-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.breakdown-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 13px; font-family: 'Departure Mono', monospace; }
+.bdi { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.bdi-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.bdi-name { flex: 1; font-size: 11px; color: var(--text-mid); }
+.bdi-amt { font-family: 'Departure Mono', monospace; font-size: 11px; font-weight: 500; }
+.bdi-bar { height: 2px; background: rgba(255,255,255,0.04); border-radius: 2px; margin-top: 2px; overflow: hidden; }
+.bdi-fill { height: 100%; border-radius: 2px; }
+.exp-item { display: flex; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); gap: 9px; }
+.exp-item:last-child { border: none; }
+.exp-icon { font-size: 17px; }
+.exp-info { flex: 1; }
+.exp-name { font-size: 12px; font-weight: 700; }
+.exp-meta { font-size: 9px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-top: 1px; letter-spacing: 0.04em; }
+.exp-amt { font-family: 'Departure Mono', monospace; font-size: 13px; font-weight: 500; }
+.exp-del { color: var(--text-faint); background: none; border: none; cursor: pointer; font-size: 12px; transition: color 0.15s; }
+.exp-del:hover { color: var(--red); }
+
+/* ══ PACKING ══════════════════════════════════ */
+.packing-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; }
+.packing-nav { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; height: fit-content; position: sticky; top: 0; }
+.ring-wrap { display: flex; flex-direction: column; align-items: center; padding: 12px 0 16px; }
+.ring-svg { transform: rotate(-90deg); }
+.ring-circ { transition: stroke-dashoffset 0.5s ease; stroke-linecap: round; }
+.ring-pct { font-family: 'Departure Mono', monospace; font-size: 20px; font-weight: 500; color: var(--gold); }
+.ring-sub { font-size: 8px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.09em; margin-top: 3px; }
+.pcat-btn { width: 100%; text-align: left; padding: 8px 10px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--text-mid); font-family: 'Cabinet Grotesk', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; margin-bottom: 2px; display: flex; align-items: center; justify-content: space-between; }
+.pcat-btn:hover { background: var(--surface2); }
+.pcat-btn.active { background: var(--gold-dim); border-color: var(--border-hi); color: var(--gold); }
+.pcat-badge { background: var(--surface3); border-radius: 8px; padding: 1px 6px; font-size: 8px; font-family: 'Departure Mono', monospace; }
+.pcat-btn.active .pcat-badge { background: rgba(235,175,70,0.2); color: var(--gold); }
+
+.pack-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 12px; }
+.pack-sec-hdr { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.pack-sec-title { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+.pack-sec-prog { font-size: 9px; color: var(--text-dim); font-family: 'Departure Mono', monospace; }
+.pack-item { display: flex; align-items: center; gap: 11px; padding: 10px 16px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.13s; }
+.pack-item:last-of-type { border-bottom: none; }
+.pack-item:hover { background: var(--surface2); }
+.pack-item.checked { opacity: 0.42; }
+.pack-cb { width: 18px; height: 18px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.16); background: transparent; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.18s; font-size: 10px; }
+.pack-item.checked .pack-cb { background: var(--green); border-color: var(--green); }
+.pack-item-name { flex: 1; font-size: 12px; }
+.pack-item.checked .pack-item-name { text-decoration: line-through; color: var(--text-dim); }
+.pack-badge { font-size: 7px; font-family: 'Departure Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 5px; border-radius: 3px; background: var(--gold-dim); color: var(--gold); }
+.pack-add-row { padding: 9px 16px; display: flex; gap: 7px; }
+.pack-add-in { flex: 1; background: var(--surface3); border: 1px solid var(--border-med); border-radius: 7px; color: var(--text); font-family: 'Cabinet Grotesk', sans-serif; font-size: 12px; padding: 7px 11px; outline: none; transition: border-color 0.18s; }
+.pack-add-in:focus { border-color: var(--gold); }
+.pack-add-sub { background: var(--gold); color: #0a0b0f; border: none; border-radius: 7px; padding: 7px 12px; font-family: 'Cabinet Grotesk', sans-serif; font-size: 10px; font-weight: 800; cursor: pointer; transition: background 0.18s; }
+.pack-add-sub:hover { background: #f2c060; }
+
+/* ══ PHOTOS PAGE ══════════════════════════════ */
+.photo-grid { columns: 3; gap: 12px; }
+.photo-card { break-inside: avoid; margin-bottom: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; transition: all 0.2s; }
+.photo-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.5); border-color: var(--border-med); }
+.photo-card img { width: 100%; display: block; }
+.photo-card-meta { padding: 10px 12px; }
+.photo-card-name { font-size: 12px; font-weight: 700; }
+.photo-card-city { font-size: 9px; color: var(--text-dim); font-family: 'Departure Mono', monospace; margin-top: 2px; }
+.photo-upload-zone {
+  border: 1px dashed rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  padding: 48px;
+  text-align: center;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 24px;
+}
+.photo-upload-zone:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-glow); }
+.photo-upload-icon { font-size: 36px; margin-bottom: 10px; }
+.photo-upload-label { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.photo-upload-sub { font-size: 10px; font-family: 'Departure Mono', monospace; letter-spacing: 0.05em; }
+
+/* ══ MODAL ══════════════════════════════════ */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.22s; }
+.overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--surface); border: 1px solid var(--border-med); border-radius: 18px; width: 90%; max-width: 480px; padding: 26px; transform: translateY(16px) scale(0.98); transition: transform 0.22s cubic-bezier(0.16,1,0.3,1); max-height: 90vh; overflow-y: auto; }
+.overlay.open .modal { transform: translateY(0) scale(1); }
+.modal-title { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; margin-bottom: 3px; }
+.modal-sub { font-size: 9px; color: var(--text-dim); font-family: 'Departure Mono', monospace; letter-spacing: 0.06em; margin-bottom: 20px; }
+.form-group { margin-bottom: 13px; }
+.form-label { display: block; font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; font-family: 'Departure Mono', monospace; }
+.form-input, .form-select, .form-textarea { width: 100%; background: var(--bg); border: 1px solid var(--border-med); border-radius: 9px; color: var(--text); font-family: 'Cabinet Grotesk', sans-serif; font-size: 13px; padding: 9px 12px; outline: none; transition: border-color 0.18s; }
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--gold); }
+.form-select { cursor: pointer; }
+.form-textarea { resize: vertical; min-height: 68px; }
+.form-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 9px; margin-top: 20px; }
+.cat-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+.cat-pill { padding: 5px 10px; border-radius: 14px; border: 1px solid var(--border-med); background: transparent; color: var(--text-dim); font-size: 10px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+.cat-pill.on { border-color: var(--cc); background: color-mix(in srgb, var(--cc) 15%, transparent); color: var(--cc); }
+
+/* Delete confirm overlay */
+.del-confirm {
+  position: absolute;
+  inset: 0;
+  background: rgba(10,11,15,0.92);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: var(--radius-sm);
+  z-index: 10;
+}
+.del-confirm.show { display: flex; }
+
+/* ══ TOAST ══════════════════════════════════ */
+.toast-container { position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: 8px; z-index: 9999; }
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border-med);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 240px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: toastIn 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.toast.success { border-color: rgba(78,202,138,0.3); }
+.toast.error { border-color: rgba(224,86,86,0.3); }
+.toast.info { border-color: var(--border-hi); }
+.toast-icon { font-size: 16px; }
+
+/* Presence cursors */
+.presence-cursor { position: fixed; pointer-events: none; z-index: 9990; transition: all 0.1s; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.presence-dot { width: 10px; height: 10px; border-radius: 50%; }
+.presence-name { padding: 2px 6px; border-radius: 4px; margin-top: 2px; }
+
+/* Sync indicator */
+.sync-indicator {
+  position: fixed;
+  top: 70px; right: 20px;
+  font-size: 10px;
+  font-family: 'Departure Mono', monospace;
+  color: var(--text-dim);
+  display: flex; align-items: center; gap: 5px;
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.sync-indicator.show { opacity: 1; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: syncPulse 1s ease infinite; }
+@keyframes syncPulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+
+/* Confetti */
+.cf { position: fixed; pointer-events: none; z-index: 9999; animation: cfFall linear forwards; }
+@keyframes cfFall { 0%{opacity:1;transform:translateY(-10px)rotate(0deg);} 100%{opacity:0;transform:translateY(100vh)rotate(720deg);} }
+
+/* Loading screen */
+.loading-screen { position: fixed; inset: 0; background: var(--bg); z-index: 9998; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.loading-logo { font-family: 'Fraunces', serif; font-size: 52px; font-style: italic; font-weight: 300; color: var(--gold); animation: loadPulse 1.8s ease infinite; }
+@keyframes loadPulse { 0%,100%{opacity:0.6;} 50%{opacity:1;} }
+.loading-dots { display: flex; gap: 6px; }
+.loading-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); opacity: 0.3; animation: dotBounce 1.2s ease infinite; }
+.loading-dot:nth-child(2){animation-delay:.15s;}
+.loading-dot:nth-child(3){animation-delay:.3s;}
+@keyframes dotBounce{0%,100%{transform:translateY(0);opacity:.3;}50%{transform:translateY(-8px);opacity:1;}}
+
+/* undo bar */
+.undo-bar { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--border-hi); border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; gap: 16px; z-index: 5000; font-size: 13px; font-weight: 600; box-shadow: 0 8px 32px rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: all 0.25s; }
+.undo-bar.show { opacity: 1; pointer-events: all; }
+.undo-btn { background: var(--gold); color: #0a0b0f; border: none; border-radius: 7px; padding: 5px 12px; font-family: 'Cabinet Grotesk', sans-serif; font-size: 11px; font-weight: 800; cursor: pointer; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen" id="loading-screen">
+  <div class="loading-logo">Roam</div>
+  <div class="loading-dots">
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+    <div class="loading-dot"></div>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen" style="display:none;">
+  <div class="auth-card">
+    <div class="auth-logo">Roam</div>
+    <div class="auth-tagline">Plan together. Travel better.</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Create Account</button>
+    </div>
+    <div id="auth-login-form">
+      <div class="auth-input-wrap"><label class="auth-label">Email</label><input class="auth-input" type="email" id="login-email" placeholder="you@example.com" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="auth-input-wrap"><label class="auth-label">Password</label><input class="auth-input" type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="auth-btn" onclick="doLogin()">Sign In →</button>
+    </div>
+    <div id="auth-signup-form" style="display:none;">
+      <div class="auth-input-wrap"><label class="auth-label">Full Name</label><input class="auth-input" type="text" id="signup-name" placeholder="Your name"></div>
+      <div class="auth-input-wrap"><label class="auth-label">Email</label><input class="auth-input" type="email" id="signup-email" placeholder="you@example.com"></div>
+      <div class="auth-input-wrap"><label class="auth-label">Password</label><input class="auth-input" type="password" id="signup-password" placeholder="8+ characters"></div>
+      <button class="auth-btn" onclick="doSignup()">Create Account →</button>
+    </div>
+    <div class="auth-divider">or</div>
+    <button class="auth-demo-btn" onclick="demoMode()">✈️ Try Demo (No Account Needed)</button>
+    <div id="auth-msg"></div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app-shell" style="display:none;">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo" onclick="showPage('trips')">R</div>
+    <div class="nav-item" id="nav-trips" onclick="showPage('trips')"><span class="nav-icon">🗂️</span><span class="nav-label">Trips</span></div>
+    <div class="nav-item" id="nav-overview" onclick="showPage('overview')"><span class="nav-icon">🗺️</span><span class="nav-label">Plan</span></div>
+    <div class="nav-item" id="nav-itinerary" onclick="showPage('itinerary')"><span class="nav-icon">📅</span><span class="nav-label">Days</span></div>
+    <div class="nav-item" id="nav-map" onclick="showPage('map')"><span class="nav-icon">📍</span><span class="nav-label">Globe</span></div>
+    <div class="nav-item" id="nav-budget" onclick="showPage('budget')"><span class="nav-icon">💰</span><span class="nav-label">Budget</span></div>
+    <div class="nav-item" id="nav-packing" onclick="showPage('packing')"><span class="nav-icon">🎒</span><span class="nav-label">Pack</span></div>
+    <div class="nav-item" id="nav-photos" onclick="showPage('photos')"><span class="nav-icon">📸</span><span class="nav-label">Photos</span></div>
+    <div class="sidebar-bottom">
+      <div class="nav-item btn-ghost btn-icon" onclick="doLogout()" title="Sign Out" style="width:44px;height:44px;font-size:15px;">⎋</div>
+      <div class="user-avatar" id="user-av" onclick="showPage('overview')">
+        U
+        <div class="online-dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="trip-info">
+        <input class="trip-name-input" id="trip-name-input" value="Southeast Asia Trip ✈️" onchange="updateTripName(this.value)">
+        <span class="status-badge status-planning">Planning</span>
+      </div>
+      <div class="collab-row">
+        <div class="collab-avatars" id="collab-avatars"></div>
+        <button class="btn btn-outline btn-sm" onclick="openModal('modal-invite')">👥 Invite</button>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openModal('modal-activity')">+ Activity</button>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('modal-expense')">+ Expense</button>
+          <button class="btn btn-gold btn-sm" onclick="openModal('modal-city')">+ City</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+    <!-- TRIPS LIST -->
+    <div class="page" id="page-trips">
+      <div class="page-hdr">
+        <div><div class="page-title">My <em>Trips</em></div><div class="page-sub">All your adventures</div></div>
+        <button class="btn btn-gold" onclick="newTrip()">+ New Trip</button>
+      </div>
+      <div class="trips-grid" id="trips-grid"></div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div class="page active" id="page-overview">
+      <div class="page-hdr">
+        <div><div class="page-title">Trip <em>Overview</em></div><div class="page-sub" id="ov-sub">0 cities · 0 days · $0 tracked</div></div>
+        <div class="page-actions">
+          <button class="btn btn-outline btn-sm" onclick="exportTrip()">↓ Export PDF</button>
+          <button class="btn btn-outline btn-sm" onclick="duplicateTrip()">⎘ Duplicate</button>
+        </div>
+      </div>
+      <div class="stat-bar" id="stat-bar"></div>
+
+      <!-- CITIES with drag-to-reorder -->
+      <div class="cities-section">
+        <div class="cities-section-hdr">
+          <span class="section-label">🌏 Destinations — drag to reorder</span>
+          <button class="btn btn-outline btn-sm" onclick="openModal('modal-city')">+ Add City</button>
+        </div>
+        <div class="cities-list" id="cities-list"></div>
+      </div>
+
+      <!-- ROUTE -->
+      <div class="route-display">
+        <div class="route-label">🧭 Route</div>
+        <div class="route-track" id="route-track"></div>
+      </div>
+
+      <!-- COLLABORATORS -->
+      <div class="collab-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span class="section-label">👥 Collaborators</span>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('modal-invite')">+ Invite</button>
+        </div>
+        <div class="collab-list" id="collab-list"></div>
+        <div class="collab-invite-row" style="margin-top:14px;">
+          <input class="collab-invite-input" id="quick-invite" placeholder="friend@email.com — invite to collaborate" onkeydown="if(event.key==='Enter')quickInvite()">
+          <button class="btn btn-gold btn-sm" onclick="quickInvite()">Invite</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITINERARY -->
+    <div class="page" id="page-itinerary">
+      <div class="page-hdr">
+        <div><div class="page-title">Day-by-Day <em>Plan</em></div><div class="page-sub">Drag to reorder activities</div></div>
+        <select class="form-select" style="width:auto;padding:6px 10px;font-size:11px;" id="itin-city-filter" onchange="renderDaySidebar()"><option value="all">All Cities</option></select>
+      </div>
+      <div class="itin-layout">
+        <div class="day-sidebar">
+          <div class="day-sidebar-label">Days</div>
+          <div class="days-scroll" id="days-scroll"></div>
+          <div class="add-day-row">
+            <button class="add-day-btn" onclick="addDay()">＋ Add Day</button>
+          </div>
+        </div>
+        <div class="day-detail-wrap" id="day-detail"></div>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="page" id="page-map">
+      <div class="map-outer">
+        <div class="map-bar">
+          <span style="font-size:9px;color:var(--text-dim);font-family:'Departure Mono',monospace;letter-spacing:.08em;text-transform:uppercase;margin-right:6px;">Show:</span>
+          <button class="map-chip active" onclick="mapFilter('all',this)">All</button>
+          <button class="map-chip" onclick="mapFilter('food',this)">🍜 Food</button>
+          <button class="map-chip" onclick="mapFilter('sights',this)">🏛️ Sights</button>
+          <button class="map-chip" onclick="mapFilter('nature',this)">🌿 Nature</button>
+          <button class="map-chip" onclick="mapFilter('nightlife',this)">🌙 Nightlife</button>
+          <div style="margin-left:auto;font-size:9px;color:var(--text-dim);font-family:'Departure Mono',monospace;">Click pins · Scroll to zoom · Flight paths shown</div>
+        </div>
+        <div id="leaflet-map"></div>
+      </div>
+    </div>
+
+    <!-- BUDGET -->
+    <div class="page" id="page-budget">
+      <div class="page-hdr">
+        <div><div class="page-title">Budget <em>Tracker</em></div><div class="page-sub">Track every dollar</div></div>
+        <button class="btn btn-gold" onclick="openModal('modal-expense')">+ Expense</button>
+      </div>
+      <div class="budget-cards">
+        <div class="budget-card"><div class="bg-glow" style="background:radial-gradient(circle,rgba(235,175,70,.13)0%,transparent 70%);"></div><div class="budget-lbl">Total Budget</div><div class="budget-amt"><span class="budget-curr">$</span><span id="disp-total">0</span></div><div style="margin-top:10px;"><input type="number" id="budget-in" placeholder="Set your budget..." class="form-input" style="font-family:'Departure Mono',monospace;" oninput="setBudget(this.value)"></div></div>
+        <div class="budget-card"><div class="bg-glow" style="background:radial-gradient(circle,rgba(78,202,138,.13)0%,transparent 70%);"></div><div class="budget-lbl">Total Spent</div><div class="budget-amt" style="color:var(--green);"><span class="budget-curr" style="color:var(--green);">$</span><span id="disp-spent">0</span></div><div class="bpbar"><div class="bpbar-fill" id="bar-spent" style="width:0%;background:var(--green);"></div></div><div class="budget-hint" id="hint-spent">0% used</div></div>
+        <div class="budget-card"><div class="bg-glow" style="background:radial-gradient(circle,rgba(78,143,234,.13)0%,transparent 70%);"></div><div class="budget-lbl">Remaining</div><div class="budget-amt" style="color:var(--blue);"><span class="budget-curr" style="color:var(--blue);">$</span><span id="disp-rem">0</span></div><div class="bpbar"><div class="bpbar-fill" id="bar-rem" style="width:100%;background:var(--blue);"></div></div><div class="budget-hint" id="hint-rem">100% left</div></div>
+      </div>
+      <div class="budget-grid2">
+        <div class="breakdown-card"><div class="breakdown-lbl">By Category</div><div id="cat-bd"></div></div>
+        <div class="breakdown-card"><div class="breakdown-lbl">Recent Expenses</div><div id="exp-list"></div></div>
+      </div>
+    </div>
+
+    <!-- PACKING -->
+    <div class="page" id="page-packing">
+      <div class="page-hdr">
+        <div><div class="page-title"><em>Packing</em> List</div><div class="page-sub">Bangkok & Bali optimized</div></div>
+        <div class="page-actions">
+          <button class="btn btn-outline btn-sm" onclick="checkAll()">✓ All Packed</button>
+          <button class="btn btn-danger btn-sm" onclick="uncheckAll()">↺ Reset</button>
+        </div>
+      </div>
+      <div class="packing-layout">
+        <div class="packing-nav">
+          <div class="ring-wrap">
+            <div style="position:relative;width:80px;height:80px;">
+              <svg class="ring-svg" width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="33" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="5"/>
+                <circle id="ring-c" class="ring-circ" cx="40" cy="40" r="33" fill="none" stroke="var(--gold)" stroke-width="5" stroke-dasharray="207.3" stroke-dashoffset="207.3"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+                <div class="ring-pct" id="ring-pct">0%</div>
+              </div>
+            </div>
+            <div class="ring-sub">Packed</div>
+          </div>
+          <div id="pcat-nav"></div>
+        </div>
+        <div id="packing-main"></div>
+      </div>
+    </div>
+
+    <!-- PHOTOS -->
+    <div class="page" id="page-photos">
+      <div class="page-hdr">
+        <div><div class="page-title">Trip <em>Photos</em></div><div class="page-sub" id="photos-sub">0 photos · drag to upload</div></div>
+      </div>
+      <div class="photo-upload-zone" id="upload-zone" onclick="document.getElementById('photo-file-in').click()" ondrop="handleDrop(event)" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='rgba(255,255,255,0.1)'">
+        <div class="photo-upload-icon">📸</div>
+        <div class="photo-upload-label">Drop photos here or click to upload</div>
+        <div class="photo-upload-sub">JPG, PNG, HEIC · Multiple files OK · Stored securely</div>
+        <input type="file" id="photo-file-in" multiple accept="image/*" style="display:none;" onchange="handlePhotoUpload(this.files)">
+      </div>
+      <div class="photo-grid" id="photo-grid"></div>
+    </div>
+
+    </div><!-- .content -->
+  </div><!-- .main -->
+
+</div><!-- #app-shell -->
+
+<!-- SYNC INDICATOR -->
+<div class="sync-indicator" id="sync-ind"><div class="sync-dot"></div>Syncing...</div>
+
+<!-- UNDO BAR -->
+<div class="undo-bar" id="undo-bar">
+  <span id="undo-msg">Item deleted</span>
+  <button class="undo-btn" onclick="doUndo()">Undo</button>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- MODALS -->
+<div class="overlay" id="modal-activity">
+  <div class="modal">
+    <div class="modal-title">Add <em style="color:var(--gold)">Activity</em></div>
+    <div class="modal-sub">What's on your agenda?</div>
+    <div class="form-group"><label class="form-label">Name</label><input type="text" class="form-input" id="a-name" placeholder="e.g. Wat Pho Temple"></div>
+    <div class="form-row2" style="margin-bottom:13px;">
+      <div><label class="form-label">City</label><select class="form-select" id="a-city"></select></div>
+      <div><label class="form-label">Day</label><select class="form-select" id="a-day"><option value="">No specific day</option></select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Category</label>
+      <div class="cat-picker">
+        <button class="cat-pill on" data-cat="sights" style="--cc:#ebaf46;" onclick="pickCat(this)">🏛️ Sights</button>
+        <button class="cat-pill" data-cat="food" style="--cc:#4eca8a;" onclick="pickCat(this)">🍜 Food</button>
+        <button class="cat-pill" data-cat="nightlife" style="--cc:#4e8fea;" onclick="pickCat(this)">🌙 Night</button>
+        <button class="cat-pill" data-cat="shopping" style="--cc:#e07fa0;" onclick="pickCat(this)">🛍️ Shop</button>
+        <button class="cat-pill" data-cat="nature" style="--cc:#4ecac7;" onclick="pickCat(this)">🌿 Nature</button>
+        <button class="cat-pill" data-cat="transport" style="--cc:#9d7de8;" onclick="pickCat(this)">🚌 Transit</button>
+      </div>
+    </div>
+    <div class="form-row2" style="margin-top:13px;">
+      <div><label class="form-label">Time</label><input type="time" class="form-input" id="a-time"></div>
+      <div><label class="form-label">Cost (USD)</label><input type="number" class="form-input" id="a-cost" placeholder="0"></div>
+    </div>
+    <div class="form-group" style="margin-top:13px;"><label class="form-label">Location</label><input type="text" class="form-input" id="a-loc" placeholder="Address or landmark"></div>
+    <div class="form-group"><label class="form-label">Notes</label><textarea class="form-textarea" id="a-notes" placeholder="Tips, reminders, booking links..."></textarea></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-activity')">Cancel</button><button class="btn btn-gold" onclick="saveActivity()">Save Activity</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-city">
+  <div class="modal">
+    <div class="modal-title">Add <em style="color:var(--gold)">City</em></div>
+    <div class="modal-sub">Expand your route</div>
+    <div class="form-group"><label class="form-label">City Name</label><input type="text" class="form-input" id="c-name" placeholder="e.g. Chiang Mai"></div>
+    <div class="form-group"><label class="form-label">Country</label><input type="text" class="form-input" id="c-country" placeholder="e.g. Thailand"></div>
+    <div class="form-row2">
+      <div><label class="form-label">Emoji Icon</label><input type="text" class="form-input" id="c-emoji" placeholder="🏙️"></div>
+      <div><label class="form-label">Lat, Lng (for map)</label><input type="text" class="form-input" id="c-latlng" placeholder="18.79, 98.98"></div>
+    </div>
+    <div class="form-group" style="margin-top:13px;"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes" placeholder="Notes about this destination..." style="min-height:52px;"></textarea></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-city')">Cancel</button><button class="btn btn-gold" onclick="saveCity()">Add City</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-expense">
+  <div class="modal">
+    <div class="modal-title">Add <em style="color:var(--gold)">Expense</em></div>
+    <div class="modal-sub">Track your spending</div>
+    <div class="form-group"><label class="form-label">Description</label><input type="text" class="form-input" id="e-name" placeholder="e.g. Tuk-tuk to temple"></div>
+    <div class="form-row2">
+      <div><label class="form-label">Amount (USD)</label><input type="number" class="form-input" id="e-amt" placeholder="0"></div>
+      <div><label class="form-label">Category</label><select class="form-select" id="e-cat"><option value="food">🍜 Food</option><option value="transport">🚌 Transport</option><option value="accommodation">🏨 Stay</option><option value="sights">🏛️ Sights</option><option value="shopping">🛍️ Shopping</option><option value="nightlife">🌙 Nightlife</option><option value="other">📦 Other</option></select></div>
+    </div>
+    <div class="form-group" style="margin-top:13px;"><label class="form-label">City</label><select class="form-select" id="e-city"></select></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-expense')">Cancel</button><button class="btn btn-gold" onclick="saveExpense()">Save Expense</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-invite">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Invite <em style="color:var(--gold)">Collaborators</em></div>
+    <div class="modal-sub">Work on this trip together in real-time</div>
+    <div class="form-group"><label class="form-label">Email Address</label><input type="email" class="form-input" id="inv-email" placeholder="friend@email.com"></div>
+    <div class="form-group"><label class="form-label">Role</label>
+      <select class="form-select" id="inv-role">
+        <option value="editor">✏️ Editor — can add & edit</option>
+        <option value="viewer">👁️ Viewer — read only</option>
+      </select>
+    </div>
+    <div style="background:var(--gold-glow);border:1px solid var(--border-hi);border-radius:9px;padding:12px 14px;font-size:11px;color:var(--text-mid);margin-bottom:14px;">
+      <strong style="color:var(--gold);">Real-time collaboration:</strong> Collaborators see changes instantly — like Google Docs for travel planning. You can see who's online and what they're editing.
+    </div>
+    <div class="collab-list" id="modal-collab-list"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-invite')">Close</button><button class="btn btn-gold" onclick="sendInvite()">Send Invite</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="modal-new-trip">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">New <em style="color:var(--gold)">Trip</em></div>
+    <div class="modal-sub">Where are you going?</div>
+    <div class="form-group"><label class="form-label">Trip Name</label><input type="text" class="form-input" id="nt-name" placeholder="e.g. Southeast Asia 2025"></div>
+    <div class="form-row2">
+      <div><label class="form-label">Start Date</label><input type="date" class="form-input" id="nt-start"></div>
+      <div><label class="form-label">End Date</label><input type="date" class="form-input" id="nt-end"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-new-trip')">Cancel</button><button class="btn btn-gold" onclick="createTrip()">Create Trip →</button></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// ROAM — Production Travel Planner
+// Architecture: Supabase (auth + realtime + storage) backend
+// Local state with optimistic updates + sync indicator
+// ═══════════════════════════════════════════════════════
+
+// ══ CONFIG ─────────────────────────────────────────────
+// 🔑 REPLACE THESE with your Supabase project values
+// Get them at: https://app.supabase.com → Settings → API
+const SUPABASE_URL = 'https://yzirtgovwapbztcmdyhg.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl6aXJ0Z292d2FwYnp0Y21kaHlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NjQyODgsImV4cCI6MjA4NzU0MDI4OH0.cJWVuCXwj9hQTCh9vHhLaJzEs6skUZm-ouT9JxKC1SM';
+
+let supabase = null;
+let currentUser = null;
+let realtimeChannel = null;
+let isDemoMode = false;
+
+// ══ CAT CONFIG ─────────────────────────────────────────
+const CAT = {
+  sights:        {icon:'🏛️', color:'#ebaf46', label:'Sights'},
+  food:          {icon:'🍜', color:'#4eca8a', label:'Food'},
+  nightlife:     {icon:'🌙', color:'#4e8fea', label:'Nightlife'},
+  shopping:      {icon:'🛍️', color:'#e07fa0', label:'Shopping'},
+  nature:        {icon:'🌿', color:'#4ecac7', label:'Nature'},
+  transport:     {icon:'🚌', color:'#9d7de8', label:'Transit'},
+  accommodation: {icon:'🏨', color:'#e8935a', label:'Stay'},
+  other:         {icon:'📦', color:'#888',     label:'Other'},
+};
+
+const CITY_PALETTE = ['#9d7de8','#4eca8a','#4e8fea','#e07fa0','#4ecac7','#ebaf46','#e8935a'];
+const ACT_OFFSETS = [[-0.045,-0.09],[0.06,0.13],[-0.09,0.05],[0.10,-0.06],[0.03,0.16],[-0.13,-0.03],[0.08,0.09],[-0.04,0.07],[0.12,0.04],[-0.07,-0.12]];
+
+// ══ STATE ──────────────────────────────────────────────
+let S = {
+  tripId: null, tripName: 'Southeast Asia Trip ✈️',
+  cities: [], days: [], activities: [], expenses: [], photos: [],
+  collaborators: [], budget: 0,
+  selectedDay: null, selectedCat: 'sights', packCat: 'clothing',
+  mapFilterVal: 'all',
+  undoStack: [],
+  packing: {
+    clothing:[{id:'c1',name:'Lightweight breathable shirts ×5',checked:false,badge:'BKK heat'},{id:'c2',name:'Linen pants / shorts',checked:false,badge:''},{id:'c3',name:'Temple cover-up scarf',checked:false,badge:'required'},{id:'c4',name:'Swimwear ×2',checked:false,badge:'Bali'},{id:'c5',name:'Light rain jacket',checked:false,badge:''},{id:'c6',name:'Comfortable walking shoes',checked:false,badge:''},{id:'c7',name:'Flip flops / sandals',checked:false,badge:'beach'},{id:'c8',name:'Underwear ×7',checked:false,badge:''},{id:'c9',name:'Socks ×4',checked:false,badge:''}],
+    documents:[{id:'d1',name:'Passport (6+ months validity)',checked:false,badge:'essential'},{id:'d2',name:'Travel insurance docs',checked:false,badge:'essential'},{id:'d3',name:'Flight confirmations',checked:false,badge:''},{id:'d4',name:'Hotel bookings',checked:false,badge:''},{id:'d5',name:'Thailand visa info',checked:false,badge:'check'},{id:'d6',name:'Indonesia e-Visa',checked:false,badge:'required'},{id:'d7',name:'Emergency contacts',checked:false,badge:''},{id:'d8',name:'Vaccination records',checked:false,badge:'check'}],
+    tech:[{id:'t1',name:'Universal adapter (Type A/B/C)',checked:false,badge:''},{id:'t2',name:'Power bank 10,000+ mAh',checked:false,badge:''},{id:'t3',name:'Phone + charging cables',checked:false,badge:''},{id:'t4',name:'Camera + memory cards',checked:false,badge:''},{id:'t5',name:'Earbuds / headphones',checked:false,badge:''},{id:'t6',name:'Local SIM card arranged',checked:false,badge:'research'}],
+    health:[{id:'h1',name:'Sunscreen SPF 50+',checked:false,badge:'tropical'},{id:'h2',name:'DEET insect repellent',checked:false,badge:'mosquitoes'},{id:'h3',name:'Stomach / diarrhea meds',checked:false,badge:'street food'},{id:'h4',name:'Antihistamines',checked:false,badge:''},{id:'h5',name:'Paracetamol / ibuprofen',checked:false,badge:''},{id:'h6',name:'Blister plasters',checked:false,badge:'walking'},{id:'h7',name:'Hand sanitizer',checked:false,badge:''},{id:'h8',name:'Electrolyte sachets',checked:false,badge:'heat'}],
+    toiletries:[{id:'to1',name:'Toothbrush + toothpaste',checked:false,badge:''},{id:'to2',name:'Shampoo / conditioner',checked:false,badge:''},{id:'to3',name:'Deodorant',checked:false,badge:''},{id:'to4',name:'Razor',checked:false,badge:''},{id:'to5',name:'Lightweight moisturizer',checked:false,badge:''},{id:'to6',name:'Lip balm SPF',checked:false,badge:''}],
+    money:[{id:'m1',name:'USD cash for exchange',checked:false,badge:''},{id:'m2',name:'Notify bank of travel',checked:false,badge:'action'},{id:'m3',name:'Credit card (no foreign fees)',checked:false,badge:''},{id:'m4',name:'Debit card + PIN',checked:false,badge:'ATMs'},{id:'m5',name:'Day-1 local cash',checked:false,badge:''}],
+    misc:[{id:'x1',name:'Reusable water bottle',checked:false,badge:'eco'},{id:'x2',name:'Dry bag for water activities',checked:false,badge:'Bali'},{id:'x3',name:'Luggage padlock',checked:false,badge:''},{id:'x4',name:'Flight snacks',checked:false,badge:''},{id:'x5',name:'Eye mask + ear plugs',checked:false,badge:'flights'},{id:'x6',name:'Mini portable fan',checked:false,badge:'BKK heat'}],
+  }
+};
+
+const PACK_CATS = [
+  {id:'clothing',icon:'👔',label:'Clothing'},
+  {id:'documents',icon:'📋',label:'Documents'},
+  {id:'tech',icon:'💻',label:'Tech'},
+  {id:'health',icon:'💊',label:'Health'},
+  {id:'toiletries',icon:'🪥',label:'Toiletries'},
+  {id:'money',icon:'💳',label:'Money'},
+  {id:'misc',icon:'🎒',label:'Misc'},
+];
+
+// ══ INIT ───────────────────────────────────────────────
+function showAuth() {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+window.addEventListener('load', async () => {
+  // Hard fallback — if anything hangs, show auth after 3s
+  const fallback = setTimeout(showAuth, 3000);
+  try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Race getSession against a 2.5s timeout so local file:// doesn't hang forever
+    const session = await Promise.race([
+      supabase.auth.getSession().then(r => r.data?.session || null),
+      new Promise(res => setTimeout(() => res(null), 2500))
+    ]);
+    clearTimeout(fallback);
+    if (session) { currentUser = session.user; await bootApp(); }
+    else { showAuth(); }
+  } catch(e) {
+    console.error('Supabase init error:', e);
+    clearTimeout(fallback);
+    showAuth();
+  }
+});
+
+async function bootApp(user) {
+  if (user) currentUser = user;
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'flex';
+  const email = isDemoMode ? 'demo@roam.app' : (currentUser?.email || 'user@roam.app');
+  const av = document.getElementById('user-av');
+  av.textContent = isDemoMode ? '✈' : email.charAt(0).toUpperCase();
+  const dot = document.createElement('div'); dot.className = 'online-dot'; av.appendChild(dot);
+  if (isDemoMode) { seedDemoData(); }
+  else { await loadOrCreateTrip(); }
+  syncCitySelects(); renderOverview(); renderTripsList(); renderDaySidebar();
+  renderDayDetail(S.selectedDay); renderBudget(); renderPacking(); renderPhotos();
+  renderCollabList(); showPage('overview');
+  if (!isDemoMode) setupRealtime();
+}
+
+// ══ DB — LOAD TRIP ─────────────────────────────────────
+async function loadOrCreateTrip() {
+  let { data: trips } = await supabase.from('trips').select('*')
+    .eq('owner_id', currentUser.id).order('created_at', { ascending: false }).limit(1);
+  let trip = trips?.[0];
+  if (!trip) {
+    const { data } = await supabase.from('trips')
+      .insert({ name: 'My First Trip ✈️', owner_id: currentUser.id }).select().single();
+    trip = data;
+  }
+  S.tripId = trip.id; S.tripName = trip.name; S.budget = trip.total_budget || 0;
+  setTimeout(() => { const el = document.getElementById('budget-in'); if (el && S.budget) el.value = S.budget; }, 200);
+  document.getElementById('trip-name-input').value = S.tripName;
+
+  const [cities, days, activities, expenses, collabs, packItems, photos] = await Promise.all([
+    supabase.from('cities').select('*').eq('trip_id', trip.id).order('sort_order'),
+    supabase.from('days').select('*').eq('trip_id', trip.id).order('day_number'),
+    supabase.from('activities').select('*').eq('trip_id', trip.id).order('sort_order'),
+    supabase.from('expenses').select('*').eq('trip_id', trip.id).order('created_at', { ascending: false }),
+    supabase.from('trip_collaborators').select('*').eq('trip_id', trip.id),
+    supabase.from('packing_items').select('*').eq('trip_id', trip.id).order('sort_order'),
+    supabase.from('photos').select('*').eq('trip_id', trip.id).order('created_at', { ascending: false }),
+  ]);
+
+  S.cities      = (cities.data      || []).map(dbCityToLocal);
+  S.days        = (days.data        || []).map(dbDayToLocal);
+  S.activities  = (activities.data  || []).map(dbActToLocal);
+  S.expenses    = (expenses.data    || []).map(dbExpToLocal);
+  S.collaborators = (collabs.data   || []).map(c => ({
+    name: c.email || 'Collaborator', color: CITY_PALETTE[0], role: c.role, online: false
+  }));
+  S.photos = (photos.data || []).map(p => ({ id: p.id, url: p.public_url, name: p.caption || 'Photo', city: p.city_id }));
+
+  if (packItems.data?.length) {
+    Object.keys(S.packing).forEach(k => S.packing[k] = []);
+    packItems.data.forEach(item => {
+      if (!S.packing[item.category]) S.packing[item.category] = [];
+      S.packing[item.category].push({ id: item.id, name: item.name, checked: item.checked, badge: item.badge || '' });
+    });
+  } else {
+    await seedPackingItemsToDB();
+  }
+  S.selectedDay = S.days[0]?.id || null;
+}
+
+function dbCityToLocal(c) {
+  return { id: c.id, name: c.name, country: c.country || '', emoji: c.emoji || '🏙️',
+    flag: c.flag || '', color: c.color || '#9d7de8', lat: c.lat, lng: c.lng, notes: c.notes || '' };
+}
+function dbDayToLocal(d) {
+  return { id: d.id, num: d.day_number, label: d.label || ('Day ' + d.day_number),
+    city: d.city_id, date: d.date || '' };
+}
+function dbActToLocal(a) {
+  return { id: a.id, name: a.name, city: a.city_id, dayId: a.day_id,
+    category: a.category, time: a.time_of_day?.slice(0,5) || '',
+    cost: a.cost_usd?.toString() || '0', location: a.location || '',
+    notes: a.notes || '', photoUrl: a.photo_url || null };
+}
+function dbExpToLocal(e) {
+  return { id: e.id, name: e.name, amount: e.amount_usd, category: e.category, city: e.city_id };
+}
+
+async function seedPackingItemsToDB() {
+  const rows = []; let order = 0;
+  Object.entries(S.packing).forEach(([cat, items]) => {
+    items.forEach(item => {
+      rows.push({ trip_id: S.tripId, category: cat, name: item.name, checked: false, badge: item.badge || '', sort_order: order++ });
+    });
+  });
+  const { data } = await supabase.from('packing_items').insert(rows).select();
+  if (data) {
+    Object.keys(S.packing).forEach(k => S.packing[k] = []);
+    data.forEach(item => {
+      if (!S.packing[item.category]) S.packing[item.category] = [];
+      S.packing[item.category].push({ id: item.id, name: item.name, checked: item.checked, badge: item.badge || '' });
+    });
+  }
+}
+
+// ══ AUTH ───────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.getElementById('auth-login-form').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('auth-signup-form').style.display = tab === 'signup' ? 'block' : 'none';
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass  = document.getElementById('login-password').value;
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+  if (error) { document.getElementById('auth-msg').innerHTML = `<div class="auth-error">${error.message}</div>`; return; }
+  currentUser = data.user;
+  await bootApp();
+}
+
+async function doSignup() {
+  const name  = document.getElementById('signup-name').value;
+  const email = document.getElementById('signup-email').value;
+  const pass  = document.getElementById('signup-password').value;
+  if (!pass || pass.length < 6) { document.getElementById('auth-msg').innerHTML = '<div class="auth-error">Password must be at least 6 characters</div>'; return; }
+  const { data, error } = await supabase.auth.signUp({ email, password: pass, options: { data: { full_name: name } } });
+  if (error) { document.getElementById('auth-msg').innerHTML = `<div class="auth-error">${error.message}</div>`; return; }
+  // Auto-login after signup if email confirmation is disabled
+  if (data.session) { currentUser = data.user; await bootApp(); }
+  else { document.getElementById('auth-msg').innerHTML = '<div class="auth-success">✓ Check your email to confirm your account!</div>'; }
+}
+
+function demoMode() {
+  isDemoMode = true;
+  bootApp();  // no await — demo uses sync seedDemoData
+}
+
+async function doLogout() {
+  if (supabase && !isDemoMode) await supabase.auth.signOut();
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('auth-screen').style.display = 'flex';
+}
+
+// ══ REALTIME (Supabase) ────────────────────────────────
+function setupRealtime() {
+  if (!supabase || !S.tripId) return;
+  realtimeChannel = supabase.channel('trip-collab-' + S.tripId)
+
+    // Live DB changes from any collaborator
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'activities', filter: `trip_id=eq.${S.tripId}` }, ({ new: row }) => {
+      if (S.activities.find(a => a.id === row.id)) return;
+      S.activities.push(dbActToLocal(row));
+      refreshIfNeeded(); toast('info', `✏️ New activity added by collaborator`);
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'activities', filter: `trip_id=eq.${S.tripId}` }, ({ old: row }) => {
+      S.activities = S.activities.filter(a => a.id !== row.id); refreshIfNeeded();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'days', filter: `trip_id=eq.${S.tripId}` }, ({ new: row }) => {
+      if (S.days.find(d => d.id === row.id)) return;
+      S.days.push(dbDayToLocal(row)); renderDaySidebar(); renderOverview();
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'days', filter: `trip_id=eq.${S.tripId}` }, ({ old: row }) => {
+      S.days = S.days.filter(d => d.id !== row.id); renderDaySidebar(); renderOverview();
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'cities', filter: `trip_id=eq.${S.tripId}` }, ({ new: row }) => {
+      if (S.cities.find(c => c.id === row.id)) return;
+      S.cities.push(dbCityToLocal(row)); renderOverview(); syncCitySelects();
+      if (mapInited) { refreshMapMarkers(); drawFlights(); }
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'packing_items', filter: `trip_id=eq.${S.tripId}` }, ({ new: row }) => {
+      const item = Object.values(S.packing).flat().find(i => i.id === row.id);
+      if (item) { item.checked = row.checked; renderPacking(); }
+    })
+
+    // Presence — who's online
+    .on('presence', { event: 'sync' }, () => {
+      const state = realtimeChannel.presenceState();
+      const online = Object.values(state).flat().map(p => p.email);
+      S.collaborators.forEach(c => { c.online = online.includes(c.name); });
+      renderCollabList();
+    })
+
+    .subscribe(async status => {
+      if (status === 'SUBSCRIBED') {
+        await realtimeChannel.track({ userId: currentUser.id, email: currentUser.email });
+      }
+    });
+}
+
+function broadcastChange(type, data) {
+  if (!realtimeChannel || isDemoMode) return;
+  realtimeChannel.send({
+    type: 'broadcast',
+    event: 'state_update',
+    payload: { type, data, userId: currentUser?.id, userName: currentUser?.email }
+  });
+}
+
+function showSync() {
+  const ind = document.getElementById('sync-ind');
+  ind.classList.add('show');
+  setTimeout(() => ind.classList.remove('show'), 1800);
+}
+
+// ══ NAV ────────────────────────────────────────────────
+let mapInited = false;
+
+function showPage(p) {
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.nav-item[id]').forEach(el => el.classList.remove('active'));
+  document.getElementById('page-' + p)?.classList.add('active');
+  document.getElementById('nav-' + p)?.classList.add('active');
+  if (p === 'itinerary') renderDaySidebar();
+  if (p === 'budget') renderBudget();
+  if (p === 'packing') renderPacking();
+  if (p === 'map') setTimeout(initMap, 80);
+}
+
+// ══ TRIPS LIST ─────────────────────────────────────────
+function renderTripsList() {
+  const grid = document.getElementById('trips-grid');
+  const covers = ['🏯','🌴','⛩️','🏝️','🗼','🌺'];
+  const trips = [
+    { name: S.tripName, cities: S.cities.map(c=>c.name), days: S.days.length, acts: S.activities.length, collab: [S.collaborators[0]] },
+  ];
+  grid.innerHTML = trips.map((t, i) => `
+    <div class="trip-card" onclick="showPage('overview')">
+      <div class="trip-cover">
+        <div class="trip-cover-placeholder" style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e,#4a1942);">${covers[i % covers.length]}</div>
+        <div class="trip-cover-gradient"></div>
+        <div class="trip-cover-cities">${t.cities.slice(0,3).join(' → ')}</div>
+      </div>
+      <div class="trip-card-body">
+        <div class="trip-card-title">${t.name}</div>
+        <div class="trip-card-meta">
+          <span class="trip-card-stat">${t.days} days</span>
+          <span class="trip-card-stat">${t.acts} activities</span>
+          <div class="trip-card-collab">
+            <div class="trip-card-av" style="background:linear-gradient(135deg,#ebaf46,#9d7de8);">Y</div>
+            ${S.collaborators.map(c=>`<div class="trip-card-av" style="background:${c.color};">${c.name.charAt(0)}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('') + `
+  <div class="new-trip-card" onclick="newTrip()">
+    <div class="new-trip-card-plus">＋</div>
+    <div class="new-trip-card-label">New Trip</div>
+  </div>`;
+}
+
+function newTrip() { openModal('modal-new-trip'); }
+async function createTrip() {
+  const name = document.getElementById('nt-name').value.trim() || 'My New Trip';
+  const start = document.getElementById('nt-start').value || null;
+  const end   = document.getElementById('nt-end').value   || null;
+  S.tripName = name; S.cities = []; S.days = []; S.activities = []; S.expenses = []; S.photos = [];
+  document.getElementById('trip-name-input').value = name;
+  closeModal('modal-new-trip');
+  if (!isDemoMode) {
+    showSync();
+    const { data, error } = await supabase.from('trips').insert({
+      name, owner_id: currentUser.id, start_date: start, end_date: end
+    }).select().single();
+    if (error) { toast('error', '❌ ' + error.message); return; }
+    S.tripId = data.id;
+    await seedPackingItemsToDB();
+  }
+  renderOverview(); renderTripsList(); showPage('overview');
+  toast('success', '✈️ Trip created! Add your cities to start.');
+}
+
+async function updateTripName(val) {
+  S.tripName = val; renderTripsList();
+  if (!isDemoMode && S.tripId) {
+    await supabase.from('trips').update({ name: val }).eq('id', S.tripId);
+  }
+}
+function exportTrip() { toast('info', '📄 PDF export — connect Supabase Edge Functions for this feature'); }
+function duplicateTrip() { toast('info', '⎘ Trip duplicated! (save to Supabase to persist)'); }
+
+// ══ OVERVIEW ───────────────────────────────────────────
+function renderOverview() {
+  const spent = S.expenses.reduce((s,e) => s+e.amount, 0);
+  const allPack = Object.values(S.packing).flat();
+  const donePack = allPack.filter(i=>i.checked).length;
+  document.getElementById('ov-sub').textContent = `${S.cities.length} cities · ${S.days.length} days · $${spent.toFixed(0)} tracked`;
+  document.getElementById('trip-name-input').value = S.tripName;
+
+  document.getElementById('stat-bar').innerHTML = [
+    {icon:'🌏', val: S.cities.length, lbl:'Cities'},
+    {icon:'📅', val: S.days.length, lbl:'Days'},
+    {icon:'🎯', val: S.activities.length, lbl:'Activities'},
+    {icon:'💸', val: '$'+spent.toFixed(0), lbl:'Spent'},
+    {icon:'🎒', val: allPack.length ? Math.round(donePack/allPack.length*100)+'%' : '0%', lbl:'Packed'},
+  ].map(s => `<div class="stat-pill"><span class="stat-pill-icon">${s.icon}</span><div><div class="stat-pill-val">${s.val}</div><div class="stat-pill-lbl">${s.lbl}</div></div></div>`).join('');
+
+  renderCitiesList();
+  renderRoute();
+  renderCollabList();
+  renderTripsList();
+  syncCitySelects();
+}
+
+// ══ CITIES (draggable, deletable) ──────────────────────
+let dragCitySrc = null;
+
+function renderCitiesList() {
+  const list = document.getElementById('cities-list');
+  if (!S.cities.length) {
+    list.innerHTML = '<div style="text-align:center;padding:28px;color:var(--text-dim);font-size:12px;font-family:\'Departure Mono\',monospace;">No cities yet — click "Add City" to start</div>';
+    return;
+  }
+  list.innerHTML = S.cities.map((city, i) => {
+    const days = S.days.filter(d=>d.city===city.id).length;
+    const acts = S.activities.filter(a=>a.city===city.id).length;
+    const spent = S.expenses.filter(e=>e.city===city.id).reduce((s,e)=>s+e.amount,0);
+    return `
+    <div class="city-row" draggable="true" data-cid="${city.id}" data-ci="${i}"
+      ondragstart="dragCityStart(event,'${city.id}')"
+      ondragover="event.preventDefault();this.classList.add('drag-over-city')"
+      ondragleave="this.classList.remove('drag-over-city')"
+      ondrop="dropCity(event,'${city.id}')"
+      ondragend="document.querySelectorAll('.city-row').forEach(r=>r.classList.remove('drag-over-city'))">
+      <div class="city-row-drag" title="Drag to reorder">⠿</div>
+      <div class="city-row-swatch" style="background:${city.color};"></div>
+      <div class="city-row-emoji">${city.emoji}</div>
+      <div class="city-row-info">
+        <div class="city-row-name">${city.name}</div>
+        <div class="city-row-sub">${city.country} ${city.flag||''}</div>
+      </div>
+      <div class="city-row-stats">
+        <div class="city-row-stat"><div class="city-row-stat-val">${days}</div><div class="city-row-stat-lbl">Days</div></div>
+        <div class="city-row-stat"><div class="city-row-stat-val">${acts}</div><div class="city-row-stat-lbl">Acts</div></div>
+        <div class="city-row-stat"><div class="city-row-stat-val">$${spent.toFixed(0)}</div><div class="city-row-stat-lbl">Spent</div></div>
+      </div>
+      <div class="city-row-actions">
+        <button class="btn btn-ghost btn-icon" title="View in itinerary" onclick="goToCity('${city.id}')">📅</button>
+        <button class="btn btn-ghost btn-icon" title="View on map" onclick="showPage('map');setTimeout(()=>focusCity('${city.id}'),200)">📍</button>
+        <button class="btn btn-danger btn-icon" title="Remove city" onclick="confirmDeleteCity('${city.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function dragCityStart(e, id) {
+  dragCitySrc = id;
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function dropCity(e, targetId) {
+  e.preventDefault();
+  if (dragCitySrc === targetId) return;
+  const si = S.cities.findIndex(c=>c.id===dragCitySrc);
+  const ti = S.cities.findIndex(c=>c.id===targetId);
+  if (si<0||ti<0) return;
+  const [moved] = S.cities.splice(si, 1);
+  S.cities.splice(ti, 0, moved);
+  renderCitiesList();
+  renderRoute();
+  if (mapInited) { drawFlights(); }
+  showSync();
+  toast('success', '🌏 City order updated');
+}
+
+function confirmDeleteCity(id) {
+  const city = S.cities.find(c=>c.id===id);
+  const affectedDays = S.days.filter(d=>d.city===id).length;
+  const affectedActs = S.activities.filter(a=>a.city===id).length;
+  const msg = affectedDays+affectedActs > 0
+    ? `Remove "${city.name}"? This will also remove ${affectedDays} days and ${affectedActs} activities.`
+    : `Remove "${city.name}" from your trip?`;
+  if (confirm(msg)) deleteCity(id);
+}
+
+function deleteCity(id) {
+  const city = S.cities.find(c=>c.id===id);
+  const snapshot = { cities: [...S.cities], days: [...S.days], activities: [...S.activities] };
+  S.cities = S.cities.filter(c=>c.id!==id);
+  S.days = S.days.filter(d=>d.city!==id);
+  S.activities = S.activities.filter(a=>a.city!==id);
+  renderOverview();
+  renderDaySidebar();
+  if (mapInited) { refreshMapMarkers(); drawFlights(); }
+  showUndoBar(`"${city.name}" removed`, () => {
+    S.cities = snapshot.cities;
+    S.days = snapshot.days;
+    S.activities = snapshot.activities;
+    renderOverview(); renderDaySidebar();
+    if (mapInited) { refreshMapMarkers(); drawFlights(); }
+  });
+}
+
+function goToCity(cityId) {
+  showPage('itinerary');
+  document.getElementById('itin-city-filter').value = cityId;
+  renderDaySidebar();
+}
+
+// ══ ROUTE ──────────────────────────────────────────────
+function renderRoute() {
+  const stops = [{emoji:'✈️',name:'Depart',sub:''}, ...S.cities.map(c=>({emoji:c.emoji,name:c.name,sub:c.country})), {emoji:'🏠',name:'Return',sub:''}];
+  document.getElementById('route-track').innerHTML = stops.map((s,i) => `
+    ${i>0 ? '<div class="route-line-seg"></div>' : ''}
+    <div class="route-node">
+      <div class="route-node-icon">${s.emoji}</div>
+      <div class="route-node-name">${s.name}</div>
+      ${s.sub ? `<div class="route-node-sub">${s.sub}</div>` : ''}
+    </div>`).join('');
+}
+
+// ══ COLLABORATORS ──────────────────────────────────────
+function renderCollabList() {
+  // Topbar avatars
+  const topbar = document.getElementById('collab-avatars');
+  topbar.innerHTML = S.collaborators.map(c =>
+    `<div class="collab-av ${c.online?'online':''}" style="background:${c.color};" title="${c.name}">${c.name.charAt(0)}</div>`
+  ).join('');
+
+  // Overview list
+  const list = document.getElementById('collab-list');
+  const all = [{name: isDemoMode ? 'Demo User' : (currentUser?.email||'You'), color:'linear-gradient(135deg,#ebaf46,#9d7de8)', role:'owner', online:true}, ...S.collaborators];
+  list.innerHTML = all.map(c => `
+    <div class="collab-item">
+      <div class="collab-item-av" style="background:${c.color};">${c.name.charAt(0)}</div>
+      <div class="collab-item-name">${c.name}</div>
+      <div class="collab-item-role">${c.role||'editor'}</div>
+      ${c.online ? '<div class="collab-online-badge"></div>' : ''}
+    </div>`).join('');
+
+  // Modal list
+  const mlist = document.getElementById('modal-collab-list');
+  if (mlist) mlist.innerHTML = list.innerHTML;
+}
+
+function quickInvite() {
+  const email = document.getElementById('quick-invite').value.trim();
+  if (!email.includes('@')) { toast('error', '❌ Enter a valid email'); return; }
+  addCollaborator(email);
+  document.getElementById('quick-invite').value = '';
+}
+
+function sendInvite() {
+  const email = document.getElementById('inv-email').value.trim();
+  if (!email.includes('@')) { toast('error', '❌ Enter a valid email'); return; }
+  addCollaborator(email, document.getElementById('inv-role').value);
+  document.getElementById('inv-email').value = '';
+  closeModal('modal-invite');
+}
+
+function addCollaborator(email, role='editor') {
+  const colors = ['#9d7de8','#4eca8a','#4e8fea','#e07fa0'];
+  S.collaborators.push({ name: email, color: colors[S.collaborators.length % colors.length], role, online: false });
+  renderCollabList();
+  renderTripsList();
+  toast('success', `✉️ Invite sent to ${email}! (In production, Supabase sends the email)`);
+}
+
+// ══ MAP (Leaflet) ──────────────────────────────────────
+let LM=null, cityMks={}, actMks=[], fLines=[];
+
+function initMap() {
+  if (LM) { LM.invalidateSize(); return; }
+  LM = L.map('leaflet-map', { center: [5,108], zoom: 5 });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { subdomains: 'abcd', maxZoom: 19 }).addTo(LM);
+  refreshMapMarkers(); drawFlights(); mapInited = true;
+}
+
+function cityIcon(city) {
+  return L.divIcon({className:'',html:`
+    <div style="position:relative;width:44px;height:44px;">
+      <div style="position:absolute;top:50%;left:50%;width:44px;height:44px;border-radius:50%;background:${city.color};opacity:.2;transform:translate(-50%,-50%);animation:syncPulse 2s ease infinite;"></div>
+      <div style="position:relative;width:44px;height:44px;background:#111318;border:2px solid ${city.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 20px rgba(0,0,0,.8),0 0 0 1px ${city.color}33;">
+        ${city.emoji}
+      </div>
+    </div>`,iconSize:[44,44],iconAnchor:[22,22],popupAnchor:[0,-25]});
+}
+
+function actIcon(cat) {
+  const c = CAT[cat]||CAT.other;
+  return L.divIcon({className:'',html:`<div style="width:30px;height:30px;background:#111318;border:2px solid ${c.color};border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 3px 12px rgba(0,0,0,.7);">${c.icon}</div>`,iconSize:[30,30],iconAnchor:[15,15],popupAnchor:[0,-18]});
+}
+
+function refreshMapMarkers() {
+  if (!LM) return;
+  Object.values(cityMks).forEach(m=>m.remove()); cityMks={};
+  S.cities.forEach(city => {
+    const acts = S.activities.filter(a=>a.city===city.id);
+    const m = L.marker([city.lat, city.lng], {icon:cityIcon(city), zIndexOffset:1000}).addTo(LM);
+    const rows = acts.slice(0,6).map(a=>`<div class="lpop-act">${CAT[a.category]?.icon||'📍'} ${a.name}${a.cost?`<span style="margin-left:auto;color:var(--green);font-family:'Departure Mono',monospace;">$${a.cost}</span>`:''}</div>`).join('');
+    m.bindPopup(`<div class="lpop-city">${city.emoji} ${city.name}</div><div class="lpop-sub">${acts.length} activities · ${city.country}</div>${rows||'<div style="color:var(--text-dim);font-size:10px;font-family:\'Departure Mono\',monospace;margin-top:6px;">No activities yet</div>'}`, {minWidth:210});
+    cityMks[city.id] = m;
+  });
+  refreshActMarkers();
+}
+
+function refreshActMarkers() {
+  if (!LM) return;
+  actMks.forEach(m=>m.remove()); actMks=[];
+  S.activities.filter(a=>S.mapFilterVal==='all'||a.category===S.mapFilterVal).forEach((a,i) => {
+    const city = S.cities.find(c=>c.id===a.city);
+    if (!city||!city.lat) return;
+    const off = ACT_OFFSETS[i%ACT_OFFSETS.length];
+    const lat = city.lat + off[0]*(0.6+Math.random()*0.5);
+    const lng = city.lng + off[1]*(0.6+Math.random()*0.5);
+    const c = CAT[a.category]||CAT.other;
+    const m = L.marker([lat,lng], {icon:actIcon(a.category)}).addTo(LM);
+    m.bindPopup(`<div style="font-weight:700;font-size:13px;margin-bottom:3px;">${c.icon} ${a.name}</div><div style="font-size:10px;color:var(--text-dim);font-family:'Departure Mono',monospace;">${city.name}${a.location?' · '+a.location:''}</div>${a.cost?`<div style="color:var(--green);font-family:'Departure Mono',monospace;margin-top:5px;">$${a.cost}</div>`:''}`);
+    actMks.push(m);
+  });
+}
+
+function drawFlights() {
+  if (!LM) return;
+  fLines.forEach(l=>l.remove()); fLines=[];
+  for (let i=0;i<S.cities.length-1;i++) {
+    const a=S.cities[i],b=S.cities[i+1];
+    if(!a.lat||!b.lat) continue;
+    fLines.push(L.polyline([[a.lat,a.lng],[b.lat,b.lng]],{color:'rgba(235,175,70,0.45)',weight:1.5,dashArray:'6 8'}).addTo(LM));
+  }
+}
+
+function mapFilter(cat, btn) {
+  S.mapFilterVal = cat;
+  document.querySelectorAll('.map-chip').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  refreshActMarkers();
+}
+
+function focusCity(id) {
+  const city = S.cities.find(c=>c.id===id);
+  if (!city||!LM) return;
+  LM.flyTo([city.lat,city.lng], 11, {duration:1.2});
+  cityMks[id]?.openPopup();
+}
+
+// ══ ITINERARY ──────────────────────────────────────────
+let dragActSrc = null;
+
+async function addDay() {
+  const num  = S.days.length + 1;
+  const city = S.cities[0]?.id || null;
+  const tempId = 'tmp-day-' + Date.now();
+  const d = { id: tempId, num, label: 'Day ' + num, city, date: '' };
+  S.days.push(d); S.selectedDay = tempId;
+  renderDaySidebar(); renderDayDetail(tempId); syncCitySelects(); renderOverview();
+  if (isDemoMode) return;
+  showSync();
+  const { data, error } = await supabase.from('days').insert({
+    trip_id: S.tripId, day_number: num, label: 'Day ' + num, city_id: city
+  }).select().single();
+  if (error) { toast('error', '❌ ' + error.message); return; }
+  const day = S.days.find(d => d.id === tempId);
+  if (day) { day.id = data.id; S.selectedDay = data.id; }
+  renderDaySidebar();
+  broadcastChange('day_add', d);
+}
+
+function renderDaySidebar() {
+  const cf = document.getElementById('itin-city-filter');
+  const cur = cf.value;
+  cf.innerHTML = '<option value="all">All Cities</option>' + S.cities.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+  cf.value = cur;
+  const filter = cf.value;
+  const days = filter==='all' ? S.days : S.days.filter(d=>d.city===filter);
+  const sb = document.getElementById('days-scroll');
+  if (!days.length) { sb.innerHTML = '<div style="color:var(--text-dim);font-size:10px;text-align:center;padding:16px;font-family:\'Departure Mono\',monospace;">No days yet</div>'; return; }
+  sb.innerHTML = days.map(d => {
+    const city = S.cities.find(c=>c.id===d.city);
+    const acts = S.activities.filter(a=>a.dayId===d.id).length;
+    return `<div class="day-item ${S.selectedDay===d.id?'active':''}" onclick="selectDay('${d.id}')" draggable="true"
+      ondragstart="event.dataTransfer.setData('dayId','${d.id}')"
+      ondragover="event.preventDefault();this.classList.add('drag-over')"
+      ondragleave="this.classList.remove('drag-over')"
+      ondrop="dropDay(event,'${d.id}')">
+      <div class="day-num">${d.num}</div>
+      <div class="day-info"><div class="day-name">${d.label}</div><div class="day-meta">${city?.name||'—'} · ${acts} act${acts!==1?'s':''}</div></div>
+      <div class="day-city-chip" style="background:${city?.color||'#aaa'};"></div>
+    </div>`;
+  }).join('');
+}
+
+function dropDay(e, targetId) {
+  e.preventDefault();
+  const srcId = e.dataTransfer.getData('dayId');
+  if (srcId === targetId) return;
+  const si = S.days.findIndex(d=>d.id===srcId);
+  const ti = S.days.findIndex(d=>d.id===targetId);
+  const [moved] = S.days.splice(si,1);
+  S.days.splice(ti,0,moved);
+  S.days.forEach((d,i)=>{d.num=i+1;d.label='Day '+(i+1);});
+  renderDaySidebar(); renderOverview();
+}
+
+function selectDay(id) { S.selectedDay=id; renderDaySidebar(); renderDayDetail(id); }
+
+function renderDayDetail(dayId) {
+  const area = document.getElementById('day-detail');
+  const day = S.days.find(d=>d.id===dayId);
+  if (!day) {
+    area.innerHTML = '<div class="card" style="padding:40px;text-align:center;color:var(--text-dim);border:1px solid var(--border);border-radius:14px;"><div style="font-size:34px;margin-bottom:10px;">📅</div><div style="font-family:\'Fraunces\',serif;font-size:18px;font-weight:300;">Select a day or add one</div></div>';
+    return;
+  }
+  const city = S.cities.find(c=>c.id===day.city);
+  const acts = S.activities.filter(a=>a.dayId===dayId).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  const total = acts.reduce((s,a)=>s+(parseFloat(a.cost)||0),0);
+  area.innerHTML = `
+  <div class="day-header">
+    <div>
+      <div class="day-title">Day ${day.num} — <em>${city?.name||'?'}</em></div>
+      <input type="text" placeholder="Add date (e.g. Mar 15)" value="${day.date||''}"
+        style="background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.09);color:var(--text-dim);font-family:'Departure Mono',monospace;font-size:9px;outline:none;margin-top:6px;padding:2px 0;letter-spacing:.06em;"
+        oninput="S.days.find(d=>d.id==='${dayId}').date=this.value;renderDaySidebar()">
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div style="text-align:right;"><div style="font-family:'Departure Mono',monospace;font-size:16px;color:var(--gold);">$${total.toFixed(0)}</div><div style="font-size:8px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;">Day Total</div></div>
+      <select class="form-select" style="width:auto;padding:5px 9px;font-size:11px;" onchange="changeDayCity('${dayId}',this.value)">
+        ${S.cities.map(c=>`<option value="${c.id}" ${c.id===day.city?'selected':''}>${c.emoji} ${c.name}</option>`).join('')}
+      </select>
+      <button class="btn btn-danger" style="padding:5px 9px;" onclick="deleteDay('${dayId}')">🗑 Remove</button>
+    </div>
+  </div>
+  <div class="acts-list" id="al-${dayId}">
+    ${acts.length ? acts.map(a=>actCardHTML(a,dayId)).join('') : `<div style="text-align:center;padding:26px;color:var(--text-dim);"><div style="font-size:26px;margin-bottom:8px;">🌅</div><div style="font-size:12px;font-family:'Departure Mono',monospace;">No activities yet</div></div>`}
+  </div>
+  <button class="add-act-btn" onclick="openActModal('${dayId}')">＋ Add Activity to Day ${day.num}</button>`;
+  setupActDnd(dayId);
+}
+
+function actCardHTML(a, dayId) {
+  const c = CAT[a.category]||CAT.other;
+  const hasPhoto = a.photoUrl;
+  return `
+  <div class="act-card" draggable="true" data-aid="${a.id}" data-did="${dayId}" style="">
+    <div class="act-color-bar" style="background:${c.color};"></div>
+    <div class="act-drag-handle">⠿</div>
+    <div class="act-time-col">${fmtT(a.time)}</div>
+    <div class="act-icon-col">${c.icon}</div>
+    <div class="act-body">
+      <div class="act-title">${a.name}</div>
+      ${a.location?`<div class="act-loc">📍 ${a.location}</div>`:''}
+      <div class="act-tags">
+        <span class="tag" style="background:${c.color}1a;color:${c.color};">${c.label}</span>
+        ${a.notes?'<span class="tag" style="background:rgba(255,255,255,.06);color:var(--text-dim);">📝</span>':''}
+      </div>
+    </div>
+    ${hasPhoto
+      ? `<img class="act-photo" src="${a.photoUrl}" onclick="openPhotoViewer('${a.photoUrl}')">`
+      : `<div class="act-photo-placeholder" onclick="triggerActPhoto('${a.id}')" title="Add photo">📷</div>`
+    }
+    <div class="act-right">
+      ${a.cost?`<div class="act-cost">$${parseFloat(a.cost).toFixed(0)}</div>`:''}
+      <div class="act-actions">
+        <button onclick="deleteAct('${a.id}')" class="btn btn-danger btn-icon" style="width:26px;height:26px;font-size:11px;">✕</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function setupActDnd(dayId) {
+  const list = document.getElementById('al-'+dayId);
+  if (!list) return;
+  list.querySelectorAll('.act-card').forEach(card => {
+    card.addEventListener('dragstart', e => { dragActSrc=card.dataset.aid; setTimeout(()=>card.classList.add('dragging'),0); e.dataTransfer.effectAllowed='move'; });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); list.querySelectorAll('.act-card').forEach(c=>c.classList.remove('drag-over')); });
+    card.addEventListener('dragover', e => { e.preventDefault(); list.querySelectorAll('.act-card').forEach(c=>c.classList.remove('drag-over')); card.classList.add('drag-over'); });
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      const tgt = card.dataset.aid;
+      if (dragActSrc===tgt) return;
+      const si = S.activities.findIndex(a=>a.id===dragActSrc);
+      const ti = S.activities.findIndex(a=>a.id===tgt);
+      if(si<0||ti<0) return;
+      const [moved] = S.activities.splice(si,1);
+      moved.dayId = dayId;
+      const newTi = S.activities.findIndex(a=>a.id===tgt);
+      S.activities.splice(newTi,0,moved);
+      renderDayDetail(dayId); renderDaySidebar(); setupActDnd(dayId);
+      showSync();
+    });
+  });
+}
+
+function fmtT(t) { if(!t)return'—'; const[h,m]=t.split(':').map(Number); return`${h%12||12}:${String(m).padStart(2,'0')}${h>=12?'pm':'am'}`; }
+function changeDayCity(id,city) { const d=S.days.find(d=>d.id===id); if(d){d.city=city;renderDaySidebar();renderDayDetail(id);} }
+
+async function deleteDay(dayId) {
+  const day = S.days.find(d => d.id === dayId);
+  const snapshot = { days: [...S.days], activities: [...S.activities] };
+  S.days = S.days.filter(d => d.id !== dayId);
+  S.activities = S.activities.filter(a => a.dayId !== dayId);
+  S.days.forEach((d,i) => { d.num = i+1; d.label = 'Day '+(i+1); });
+  S.selectedDay = S.days.length ? S.days[S.days.length-1].id : null;
+  renderDaySidebar(); renderDayDetail(S.selectedDay); syncCitySelects(); renderOverview();
+  showUndoBar(`Day ${day.num} removed`, () => {
+    S.days = snapshot.days; S.activities = snapshot.activities;
+    renderDaySidebar(); renderDayDetail(S.selectedDay); renderOverview();
+    if (!isDemoMode && !dayId.startsWith('tmp')) {
+      // Re-insert is complex; just reload from DB on undo
+      loadOrCreateTrip().then(() => { syncCitySelects(); renderOverview(); renderDaySidebar(); });
+    }
+  });
+  if (!isDemoMode && !dayId.startsWith('tmp')) {
+    showSync();
+    await supabase.from('days').delete().eq('id', dayId);
+  }
+}
+
+async function deleteAct(id) {
+  const act = S.activities.find(a => a.id === id);
+  const snapshot = [...S.activities];
+  S.activities = S.activities.filter(a => a.id !== id);
+  if (S.selectedDay) renderDayDetail(S.selectedDay);
+  renderDaySidebar(); renderOverview();
+  if (mapInited) refreshActMarkers();
+  showUndoBar(`"${act.name}" removed`, () => {
+    S.activities = snapshot;
+    if (S.selectedDay) renderDayDetail(S.selectedDay);
+    renderDaySidebar(); renderOverview();
+  });
+  if (!isDemoMode && !id.startsWith('tmp')) {
+    showSync();
+    await supabase.from('activities').delete().eq('id', id);
+    broadcastChange('activity_delete', { id });
+  }
+}
+
+function openActModal(dayId) {
+  S.selectedDay=dayId;
+  populateDaySelect(dayId);
+  openModal('modal-activity');
+}
+
+// Photos for activities
+function triggerActPhoto(actId) {
+  const input = document.createElement('input');
+  input.type='file'; input.accept='image/*';
+  input.onchange = (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const url = URL.createObjectURL(file);
+    const act = S.activities.find(a=>a.id===actId);
+    if (act) { act.photoUrl=url; S.photos.push({id:'p'+Date.now(),url,name:act.name,city:act.city,actId}); }
+    renderDayDetail(S.selectedDay); renderPhotos();
+    toast('success', '📸 Photo added!');
+  };
+  input.click();
+}
+
+// ══ PACKING ────────────────────────────────────────────
+function renderPacking() {
+  const all = Object.values(S.packing).flat();
+  const done = all.filter(i=>i.checked).length;
+  const pct = all.length ? done/all.length : 0;
+  const circ = 207.3;
+  document.getElementById('ring-c').style.strokeDashoffset = circ-(pct*circ);
+  document.getElementById('ring-pct').textContent = Math.round(pct*100)+'%';
+  document.getElementById('pcat-nav').innerHTML = PACK_CATS.map(c=>{const items=S.packing[c.id]||[];const d=items.filter(i=>i.checked).length;return`<button class="pcat-btn ${S.packCat===c.id?'active':''}" onclick="setPackCat('${c.id}')">${c.icon} ${c.label}<span class="pcat-badge">${d}/${items.length}</span></button>`;}).join('');
+  const cats = PACK_CATS.filter(c=>c.id===S.packCat);
+  document.getElementById('packing-main').innerHTML = cats.map(cat=>{
+    const items=S.packing[cat.id]||[];const cd=items.filter(i=>i.checked).length;
+    return`<div class="pack-section"><div class="pack-sec-hdr"><div class="pack-sec-title">${cat.icon} ${cat.label}</div><div class="pack-sec-prog">${cd}/${items.length}</div></div>${items.map(item=>`<div class="pack-item ${item.checked?'checked':''}" onclick="togglePack('${cat.id}','${item.id}')"><div class="pack-cb">${item.checked?'✓':''}</div><div class="pack-item-name">${item.name}</div>${item.badge?`<span class="pack-badge">${item.badge}</span>`:''}</div>`).join('')}<div class="pack-add-row"><input class="pack-add-in" placeholder="Add item..." id="pi-${cat.id}" onkeydown="if(event.key==='Enter')addPackItem('${cat.id}')"><button class="pack-add-sub" onclick="addPackItem('${cat.id}')">Add</button></div></div>`;
+  }).join('');
+}
+
+function setPackCat(c) { S.packCat=c; renderPacking(); }
+async function togglePack(cat, id) {
+  const item = (S.packing[cat] || []).find(i => i.id === id);
+  if (!item) return;
+  item.checked = !item.checked;
+  renderPacking(); renderOverview();
+  if (Object.values(S.packing).flat().every(i => i.checked)) fireConfetti();
+  if (!isDemoMode && !id.startsWith('tmp')) {
+    await supabase.from('packing_items').update({ checked: item.checked }).eq('id', id);
+  }
+}
+async function addPackItem(cat) {
+  const inp = document.getElementById('pi-' + cat);
+  const name = inp.value.trim(); if (!name) return;
+  const tempId = 'tmp-p-' + Date.now();
+  if (!S.packing[cat]) S.packing[cat] = [];
+  S.packing[cat].push({ id: tempId, name, checked: false, badge: '' });
+  inp.value = ''; renderPacking();
+  if (!isDemoMode) {
+    const { data } = await supabase.from('packing_items').insert({
+      trip_id: S.tripId, category: cat, name, checked: false, sort_order: S.packing[cat].length
+    }).select().single();
+    if (data) { const item = S.packing[cat].find(i => i.id === tempId); if (item) item.id = data.id; }
+  }
+}
+function checkAll() { Object.values(S.packing).flat().forEach(i=>i.checked=true); renderPacking(); renderOverview(); fireConfetti(); }
+function uncheckAll() { Object.values(S.packing).flat().forEach(i=>i.checked=false); renderPacking(); renderOverview(); }
+
+// ══ PHOTOS PAGE ────────────────────────────────────────
+function renderPhotos() {
+  document.getElementById('photos-sub').textContent = `${S.photos.length} photos · drag to upload`;
+  const grid = document.getElementById('photo-grid');
+  if (!S.photos.length) {
+    grid.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:12px;font-family:\'Departure Mono\',monospace;grid-column:1/-1;">No photos yet — upload your first one above!</div>';
+    return;
+  }
+  grid.innerHTML = S.photos.map(p => {
+    const city = S.cities.find(c=>c.id===p.city);
+    return `<div class="photo-card" onclick="openPhotoViewer('${p.url}')">
+      <img src="${p.url}" alt="${p.name}" style="width:100%;display:block;">
+      <div class="photo-card-meta">
+        <div class="photo-card-name">${p.name}</div>
+        <div class="photo-card-city">${city?.name||'Unknown city'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function handlePhotoUpload(files) {
+  for (const file of Array.from(files)) {
+    const localUrl = URL.createObjectURL(file);
+    const tempId   = 'tmp-photo-' + Date.now();
+    const city     = S.cities[0];
+    S.photos.push({ id: tempId, url: localUrl, name: file.name.replace(/\.[^/.]+$/, ''), city: city?.id || null });
+    renderPhotos(); renderOverview();
+
+    if (!isDemoMode) {
+      showSync();
+      try {
+        const path = `${currentUser.id}/${S.tripId}/${Date.now()}-${file.name}`;
+        const { error: upErr } = await supabase.storage.from('trip-photos').upload(path, file, { contentType: file.type });
+        if (upErr) throw upErr;
+        const { data: { publicUrl } } = supabase.storage.from('trip-photos').getPublicUrl(path);
+        const { data: dbPhoto } = await supabase.from('photos').insert({
+          trip_id: S.tripId, storage_path: path, public_url: publicUrl,
+          caption: file.name.replace(/\.[^/.]+$/, ''), city_id: city?.id || null,
+          uploaded_by: currentUser.id
+        }).select().single();
+        const p = S.photos.find(p => p.id === tempId);
+        if (p && dbPhoto) { p.id = dbPhoto.id; p.url = publicUrl; }
+        toast('success', '📸 Photo saved to cloud!');
+      } catch(e) {
+        toast('error', '❌ Upload failed: ' + e.message);
+      }
+    } else {
+      toast('success', '📸 Photo added! (Demo — not persisted)');
+    }
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').style.borderColor = 'rgba(255,255,255,0.1)';
+  handlePhotoUpload(e.dataTransfer.files);
+}
+
+function openPhotoViewer(url) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:10000;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  overlay.innerHTML=`<img src="${url}" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.8);">`;
+  overlay.onclick=()=>overlay.remove();
+  document.body.appendChild(overlay);
+}
+
+// ══ BUDGET ─────────────────────────────────────────────
+async function setBudget(v) {
+  S.budget = parseFloat(v) || 0; renderBudget();
+  if (!isDemoMode && S.tripId) {
+    await supabase.from('trips').update({ total_budget: S.budget }).eq('id', S.tripId);
+  }
+}
+function renderBudget() {
+  const spent = S.expenses.reduce((s,e)=>s+e.amount,0);
+  const rem = Math.max(0,S.budget-spent);
+  const pct = S.budget>0 ? Math.min(100,(spent/S.budget)*100) : 0;
+  document.getElementById('disp-total').textContent=S.budget.toFixed(0);
+  document.getElementById('disp-spent').textContent=spent.toFixed(0);
+  document.getElementById('disp-rem').textContent=rem.toFixed(0);
+  document.getElementById('bar-spent').style.width=pct+'%';
+  document.getElementById('bar-rem').style.width=(100-pct)+'%';
+  document.getElementById('hint-spent').textContent=pct.toFixed(1)+'% of budget used';
+  document.getElementById('hint-rem').textContent=(100-pct).toFixed(1)+'% remaining';
+  const catT={};S.expenses.forEach(e=>{catT[e.category]=(catT[e.category]||0)+e.amount;});
+  const cbd=document.getElementById('cat-bd');
+  if(!Object.keys(catT).length){cbd.innerHTML='<div style="color:var(--text-dim);font-size:10px;font-family:\'Departure Mono\',monospace;text-align:center;padding:18px 0;">Add expenses to see breakdown</div>';return;}
+  const maxA=Math.max(...Object.values(catT));
+  cbd.innerHTML=Object.entries(catT).map(([cat,amt])=>{const c=CAT[cat]||CAT.other;return`<div class="bdi"><div class="bdi-dot" style="background:${c.color};"></div><div class="bdi-name">${c.icon} ${c.label}</div><div class="bdi-amt">$${amt.toFixed(0)}</div></div><div class="bdi-bar"><div class="bdi-fill" style="width:${maxA>0?amt/maxA*100:0}%;background:${c.color};"></div></div>`;}).join('');
+  const el=document.getElementById('exp-list');
+  if(!S.expenses.length){el.innerHTML='<div style="color:var(--text-dim);font-size:10px;font-family:\'Departure Mono\',monospace;text-align:center;padding:18px 0;">No expenses yet</div>';return;}
+  el.innerHTML=[...S.expenses].reverse().slice(0,8).map(e=>{const city=S.cities.find(c=>c.id===e.city);const c=CAT[e.category]||CAT.other;return`<div class="exp-item"><div class="exp-icon">${c.icon}</div><div class="exp-info"><div class="exp-name">${e.name}</div><div class="exp-meta">${city?.name||''} · ${c.label}</div></div><div class="exp-amt">$${e.amount.toFixed(0)}</div><button class="exp-del" onclick="deleteExpense('${e.id}')">✕</button></div>`;}).join('');
+}
+
+async function deleteExpense(id) {
+  S.expenses = S.expenses.filter(e => e.id !== id);
+  renderBudget(); renderOverview();
+  if (!isDemoMode && !id.startsWith('tmp')) {
+    await supabase.from('expenses').delete().eq('id', id);
+  }
+}
+
+// ══ MODALS ─────────────────────────────────────────────
+function openModal(id) { document.getElementById(id)?.classList.add('open'); }
+function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open'));});
+
+function pickCat(btn) { document.querySelectorAll('.cat-picker .cat-pill').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); S.selectedCat=btn.dataset.cat; }
+
+function syncCitySelects() {
+  const opts = S.cities.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+  ['a-city','e-city'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});
+  const cf=document.getElementById('itin-city-filter');
+  if(cf){const cur=cf.value;cf.innerHTML='<option value="all">All Cities</option>'+S.cities.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');cf.value=cur;}
+}
+
+function populateDaySelect(selId) {
+  const sel=document.getElementById('a-day');
+  if(!sel)return;
+  const target=selId||S.selectedDay;
+  sel.innerHTML='<option value="">No specific day</option>'+S.days.map(d=>{const c=S.cities.find(x=>x.id===d.city);return`<option value="${d.id}" ${d.id===target?'selected':''}>Day ${d.num} — ${c?.name||'?'}</option>`;}).join('');
+}
+
+async function saveActivity() {
+  const name = document.getElementById('a-name').value.trim();
+  if (!name) { toast('error', '❌ Enter an activity name'); return; }
+  const cityId  = document.getElementById('a-city').value || null;
+  const dayId   = document.getElementById('a-day').value  || null;
+  const cost    = parseFloat(document.getElementById('a-cost').value) || 0;
+  const time    = document.getElementById('a-time').value || null;
+  const loc     = document.getElementById('a-loc').value;
+  const notes   = document.getElementById('a-notes').value;
+
+  // Optimistic local update
+  const tempId = 'tmp-' + Date.now();
+  const localAct = { id: tempId, name, city: cityId, dayId, category: S.selectedCat,
+    time: time || '', cost: cost.toString(), location: loc, notes, photoUrl: null };
+  S.activities.push(localAct);
+  if (cost > 0) S.expenses.push({ id: 'tmp-exp-' + Date.now(), name, amount: cost, category: S.selectedCat, city: cityId });
+  closeModal('modal-activity');
+  ['a-name','a-time','a-cost','a-loc','a-notes'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  if (S.selectedDay) renderDayDetail(S.selectedDay);
+  renderDaySidebar(); renderOverview();
+  if (mapInited) refreshActMarkers();
+  toast('success', '✓ Activity added!');
+
+  if (isDemoMode) return;
+  showSync();
+  const { data, error } = await supabase.from('activities').insert({
+    trip_id: S.tripId, name, city_id: cityId, day_id: dayId,
+    category: S.selectedCat, time_of_day: time || null,
+    cost_usd: cost, location: loc, notes
+  }).select().single();
+
+  if (error) { toast('error', '❌ Save failed: ' + error.message); return; }
+  // Replace temp ID with real DB ID
+  const act = S.activities.find(a => a.id === tempId);
+  if (act) act.id = data.id;
+
+  // Also save expense to DB
+  if (cost > 0) {
+    await supabase.from('expenses').insert({
+      trip_id: S.tripId, name, amount_usd: cost, category: S.selectedCat, city_id: cityId
+    });
+  }
+  broadcastChange('activity_add', localAct);
+}
+
+async function saveCity() {
+  const name    = document.getElementById('c-name').value.trim();
+  const country = document.getElementById('c-country').value.trim();
+  const emoji   = document.getElementById('c-emoji').value.trim() || '🏙️';
+  const ll      = document.getElementById('c-latlng').value.split(',').map(v => parseFloat(v.trim()));
+  const notes   = document.getElementById('c-notes').value;
+  if (!name) { toast('error', '❌ Enter a city name'); return; }
+  const color = CITY_PALETTE[S.cities.length % CITY_PALETTE.length];
+
+  // Optimistic local add
+  const tempId = 'tmp-city-' + Date.now();
+  const localCity = { id: tempId, name, country, emoji, flag: '', color, lat: ll[0]||0, lng: ll[1]||0, notes };
+  S.cities.push(localCity);
+  ['c-name','c-country','c-emoji','c-latlng','c-notes'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
+  closeModal('modal-city'); renderOverview(); syncCitySelects();
+  if (mapInited) { refreshMapMarkers(); drawFlights(); }
+  toast('success', '🌏 City added!');
+
+  if (isDemoMode) return;
+  showSync();
+  const { data, error } = await supabase.from('cities').insert({
+    trip_id: S.tripId, name, country, emoji, color,
+    lat: ll[0] || null, lng: ll[1] || null,
+    sort_order: S.cities.length - 1, notes
+  }).select().single();
+
+  if (error) { toast('error', '❌ Save failed: ' + error.message); return; }
+  const city = S.cities.find(c => c.id === tempId);
+  if (city) city.id = data.id;
+  syncCitySelects();
+}
+
+async function saveExpense() {
+  const name   = document.getElementById('e-name').value.trim();
+  const amount = parseFloat(document.getElementById('e-amt').value) || 0;
+  const cat    = document.getElementById('e-cat').value;
+  const cityId = document.getElementById('e-city').value || null;
+  if (!name || !amount) { toast('error', '❌ Fill in description and amount'); return; }
+
+  const tempId = 'tmp-exp-' + Date.now();
+  S.expenses.push({ id: tempId, name, amount, category: cat, city: cityId });
+  closeModal('modal-expense');
+  document.getElementById('e-name').value = ''; document.getElementById('e-amt').value = '';
+  renderBudget(); renderOverview(); toast('success', '💸 Expense tracked!');
+
+  if (isDemoMode) return;
+  showSync();
+  const { data, error } = await supabase.from('expenses').insert({
+    trip_id: S.tripId, name, amount_usd: amount, category: cat, city_id: cityId
+  }).select().single();
+  if (error) { toast('error', '❌ Save failed: ' + error.message); return; }
+  const exp = S.expenses.find(e => e.id === tempId);
+  if (exp) exp.id = data.id;
+}
+
+function refreshIfNeeded() { renderDaySidebar(); if(S.selectedDay)renderDayDetail(S.selectedDay); renderOverview(); }
+
+// ══ UI UTILITIES ───────────────────────────────────────
+function toast(type, msg) {
+  const c=document.getElementById('toast-container');
+  const t=document.createElement('div');
+  const icons={success:'✓',error:'⚠',info:'ℹ'};
+  const colors={success:'var(--green)',error:'var(--red)',info:'var(--gold)'};
+  t.className=`toast ${type}`;
+  t.innerHTML=`<span class="toast-icon" style="color:${colors[type]};">${icons[type]}</span>${msg}`;
+  c.appendChild(t);
+  setTimeout(()=>t.style.cssText='opacity:0;transform:translateY(8px);transition:all .3s;',2800);
+  setTimeout(()=>t.remove(),3100);
+}
+
+let undoFn = null, undoTimer = null;
+function showUndoBar(msg, fn) {
+  undoFn=fn;
+  document.getElementById('undo-msg').textContent=msg;
+  const bar=document.getElementById('undo-bar');
+  bar.classList.add('show');
+  clearTimeout(undoTimer);
+  undoTimer=setTimeout(()=>bar.classList.remove('show'),4000);
+}
+function doUndo() { if(undoFn){undoFn();undoFn=null;} document.getElementById('undo-bar').classList.remove('show'); toast('success','↩ Undone!'); }
+
+function fireConfetti() {
+  const cols=['#ebaf46','#4eca8a','#4e8fea','#e07fa0','#4ecac7','#9d7de8'];
+  for(let i=0;i<80;i++){
+    const el=document.createElement('div');el.className='cf';
+    el.style.cssText=`left:${Math.random()*100}vw;top:-10px;background:${cols[Math.floor(Math.random()*cols.length)]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*.7}s;width:${4+Math.random()*8}px;height:${4+Math.random()*8}px;border-radius:${Math.random()>.5?'50%':'2px'};`;
+    document.body.appendChild(el);setTimeout(()=>el.remove(),3500);
+  }
+}
+
+// ══ SEED DATA ──────────────────────────────────────────
+function seedDemoData() {
+  S.tripId='demo-trip-001';
+  S.tripName='Southeast Asia Trip ✈️';
+  S.cities=[
+    {id:'bkk',name:'Bangkok',country:'Thailand',emoji:'🏯',flag:'🇹🇭',color:'#9d7de8',lat:13.7563,lng:100.5018},
+    {id:'bali',name:'Bali',country:'Indonesia',emoji:'🌴',flag:'🇮🇩',color:'#4eca8a',lat:-8.4095,lng:115.1889},
+  ];
+  S.collaborators=[
+    {name:'Sarah K.',color:'#4e8fea',role:'editor',online:true},
+    {name:'Mike R.',color:'#e07fa0',role:'viewer',online:false},
+  ];
+  S.days=[
+    {id:'d1',num:1,label:'Day 1',city:'bkk',date:''},
+    {id:'d2',num:2,label:'Day 2',city:'bkk',date:''},
+    {id:'d3',num:3,label:'Day 3',city:'bali',date:''},
+  ];
+  S.selectedDay='d1';
+  S.activities=[
+    {id:'a1',name:'Wat Pho Temple',city:'bkk',dayId:'d1',category:'sights',time:'09:00',cost:'5',location:'2 Sanam Chai Rd',notes:'Famous reclining Buddha',photoUrl:null},
+    {id:'a2',name:'Street Food at Yaowarat',city:'bkk',dayId:'d1',category:'food',time:'19:00',cost:'15',location:'Yaowarat Rd, Chinatown',notes:'Best pad thai in Bangkok',photoUrl:null},
+    {id:'a3',name:'Grand Palace',city:'bkk',dayId:'d2',category:'sights',time:'10:00',cost:'16',location:'Na Phra Lan Rd',notes:'Covered shoulders required',photoUrl:null},
+    {id:'a4',name:'Vertigo Rooftop Bar',city:'bkk',dayId:'d2',category:'nightlife',time:'20:00',cost:'30',location:'Banyan Tree Hotel',notes:'Reserve ahead',photoUrl:null},
+    {id:'a5',name:'Ubud Monkey Forest',city:'bali',dayId:'d3',category:'nature',time:'08:30',cost:'5',location:'Ubud, Gianyar',notes:'Watch your belongings!',photoUrl:null},
+  ];
+  S.expenses=[
+    {id:'e1',name:'Wat Pho Temple',amount:5,category:'sights',city:'bkk'},
+    {id:'e2',name:'Street Food',amount:15,category:'food',city:'bkk'},
+    {id:'e3',name:'Grand Palace',amount:16,category:'sights',city:'bkk'},
+    {id:'e4',name:'Vertigo Rooftop',amount:30,category:'nightlife',city:'bkk'},
+    {id:'e5',name:'Monkey Forest',amount:5,category:'nature',city:'bali'},
+  ];
+  S.budget=2000;
+  setTimeout(()=>{const el=document.getElementById('budget-in');if(el)el.value='2000';},100);
+}
+</script>
+</body>
+</html>
